@@ -44,25 +44,57 @@ swap (Engine (Stack x y z t) ops) = Engine (Stack y x y z) ops
 rot :: Engine a b -> Engine a b
 rot (Engine (Stack x y z t) ops) = Engine (Stack y z t x) ops
 
-floatEngine = Engine
-    { stack = Stack 0 0 0 0
-    , opState = OpStateFloat{ prec = Nothing }
-    }
-
-floatCalculator = Calculator
-    { engine = floatEngine
-    , opsMap = Map.fromList
+numericOps :: Num a => [(String, Engine a b -> Engine a b)]
+numericOps =
         [ ("+", stackOp2(+))
         , ("-", stackOp2(-))
         , ("*", stackOp2(*))
-        , ("/", stackOp2(/))
         , ("neg", stackOp1 negate)
-        , ("clearp", opStateOp (\s -> s{prec = Nothing}))
         , ("dup", dup)
         , ("swap", swap)
         , ("rot", rot)
         ]
+
+--setp :: Engine Float OpStateFloat -> Engine Float OpStateFloat
+--setp (Engine (Stack x y z t) opState) = Engine (Stack y z t t) opState{prec=x}
+
+floatOps :: [(String, Engine Float OpStateFloat -> Engine Float OpStateFloat)]
+floatOps = numericOps ++
+        [ ("/", stackOp2(/))
+        , ("clearp", opStateOp (\s -> s{prec = Nothing}))
+        --, ("setp", setp)
+        ] 
+
+setBase :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
+setBase engine@(Engine (Stack x y z t) opState) = case x of
+    16 -> Engine (Stack y z t t) opState{base=BaseHex}
+    10 -> Engine (Stack y z t t) opState{base=BaseDec}
+    2 -> Engine (Stack y z t t) opState{base=BaseBin}
+    _ -> engine
+
+intOps :: [(String, Engine Integer OpStateInteger -> Engine Integer OpStateInteger)]
+intOps = numericOps ++
+        [ ("base", setBase)
+        , ("/", stackOp2(div))
+        , ("%", stackOp2(mod))
+        ]
+
+floatCalculator = Calculator
+    { engine = Engine
+        { stack = Stack 0 0 0 0
+        , opState = OpStateFloat{ prec = Nothing }
+        }
+    , opsMap = Map.fromList floatOps
     , readNum = reads :: String -> [(Float,String)] 
+    }
+
+intCalculator = Calculator
+    { engine = Engine
+        { stack = Stack 0 0 0 0
+        , opState = OpStateInteger { base = BaseDec }
+        }
+    , opsMap = Map.fromList intOps
+    , readNum = reads :: String -> [(Integer,String)] 
     }
 
 data Token a = Op String | Num a deriving Show
@@ -116,13 +148,24 @@ doCalculator initialCalc acc (x:xs) =
                     case tryParse calc2 rest of
                         (Nothing, rest) -> (calc2, rest)
                         (Just t, rest) -> (consumeToken calc2 t, rest)
-    in do
-        putStrLn ""
-        print newCalc
-        putStr ("> " ++ newAcc)
-        doCalculator newCalc newAcc xs
+    in case newAcc of 
+        "_x" -> return ()
+        "_f" -> startCalculator floatCalculator xs
+        "_i" -> startCalculator intCalculator xs
+        other -> do
+            putStrLn ""
+            print newCalc
+            putStr ("> " ++ newAcc)
+            doCalculator newCalc newAcc xs
+
+startCalculator :: (Show a, Show b, Read a) => Calculator a b -> [Char] -> IO ()
+startCalculator calc input = do
+    putStrLn ""
+    print calc
+    putStr "> "
+    doCalculator calc "" input
 
 main :: IO ()
 main = do
     input <- getContents
-    doCalculator floatCalculator "" input
+    startCalculator floatCalculator input
