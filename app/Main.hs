@@ -2,6 +2,44 @@ module Main where
 
 import qualified Data.Map.Strict as Map
 
+{- from unix library -}
+import System.Posix.Terminal
+import System.Posix.IO (fdRead, stdInput)
+
+{- from base -}
+import System.IO (stdout, hSetBuffering, BufferMode(NoBuffering))
+import Control.Exception (finally, catch, IOException)
+
+{- https://stackoverflow.com/questions/23068218/haskell-read-raw-keyboard-input
+ - run an application in raw input / non-canonical mode with given
+ - VMIN and VTIME settings. for a description of these, see:
+ - http://www.gnu.org/software/libc/manual/html_node/Noncanonical-Input.html
+ - as well as `man termios`.
+ -}
+withRawInput :: Int -> Int -> IO a -> IO a
+withRawInput vmin vtime application = do
+
+  {- retrieve current settings -}
+  oldTermSettings <- getTerminalAttributes stdInput
+
+  {- modify settings -}
+  let newTermSettings =
+        flip withoutMode  EnableEcho   . -- don't echo keystrokes
+        flip withoutMode  ProcessInput . -- turn on non-canonical mode
+        flip withTime     vtime        . -- wait at most vtime decisecs per read
+        flip withMinInput vmin         $ -- wait for >= vmin bytes per read
+        oldTermSettings
+
+  {- install new settings -}
+  setTerminalAttributes stdInput newTermSettings Immediately
+
+  {- restore old settings no matter what; this prevents the terminal
+   - from becoming borked if the application halts with an exception
+   -}
+  application
+    `finally` setTerminalAttributes stdInput oldTermSettings Immediately
+
+
 data Stack a = Stack { x :: a, y :: a, z :: a, t :: a }
   deriving Show
 
@@ -134,9 +172,9 @@ parseChar calc acc c =
 
 showCalculator :: (Show a, Show b) => Calculator a b -> [Char] -> IO()
 showCalculator calc acc = do
-            putStr "\ESC[1J\ESC[H"
-            print calc
-            putStr ("> " ++ acc)
+    putStr "\ESC[1J\ESC[H"
+    print calc
+    putStr ("> " ++ acc)
 
 doCalculator :: (Show a, Show b, Read a) => Calculator a b -> [Char] -> [Char] -> IO ()
 doCalculator initialCalc acc [] = return ()
@@ -169,5 +207,6 @@ startCalculator calc input = do
 
 main :: IO ()
 main = do
+    hSetBuffering stdout NoBuffering
     input <- getContents
-    startCalculator floatCalculator input
+    withRawInput 0 0 $ startCalculator floatCalculator input
