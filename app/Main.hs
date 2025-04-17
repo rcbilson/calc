@@ -1,6 +1,7 @@
 module Main where
 
 import qualified Data.Map.Strict as Map
+import Text.Printf
 
 {- from unix library -}
 import System.Posix.Terminal
@@ -65,6 +66,7 @@ data Calculator a b = Calculator
     { engine :: Engine a b
     , opsMap :: Map.Map String (Engine a b -> Engine a b)
     , readNum :: String -> [(a,String)]
+    , display :: Engine a b -> IO ()
     }
 
 instance (Show a, Show b) => Show (Calculator a b) where
@@ -103,6 +105,14 @@ floatOps = numericOps ++
         --, ("setp", setp)
         ] 
 
+displayFloat :: Engine Float OpStateFloat -> IO ()
+displayFloat (Engine (Stack x y z t) opState) = do
+    putStrLn $ show opState
+    printf "t %f\n" t
+    printf "z %f\n" z
+    printf "y %f\n" y
+    printf "x %f\n" x
+
 setBase :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
 setBase engine@(Engine (Stack x y z t) opState) = case x of
     16 -> Engine (Stack y z t t) opState{base=BaseHex}
@@ -117,6 +127,14 @@ intOps = numericOps ++
         , ("%", stackOp2(mod))
         ]
 
+displayInteger :: Engine Integer OpStateInteger -> IO ()
+displayInteger (Engine (Stack x y z t) opState) = do
+    putStrLn $ show opState
+    printf "t %d\n" t
+    printf "z %d\n" z
+    printf "y %d\n" y
+    printf "x %d\n" x
+
 floatCalculator = Calculator
     { engine = Engine
         { stack = Stack 0 0 0 0
@@ -124,6 +142,7 @@ floatCalculator = Calculator
         }
     , opsMap = Map.fromList floatOps
     , readNum = reads :: String -> [(Float,String)] 
+    , display = displayFloat
     }
 
 intCalculator = Calculator
@@ -133,6 +152,7 @@ intCalculator = Calculator
         }
     , opsMap = Map.fromList intOps
     , readNum = reads :: String -> [(Integer,String)] 
+    , display = displayInteger
     }
 
 data Token a = Op String | Num a deriving Show
@@ -173,7 +193,7 @@ parseChar calc acc c =
 showCalculator :: (Show a, Show b) => Calculator a b -> [Char] -> IO()
 showCalculator calc acc = do
     putStr "\ESC[1J\ESC[H"
-    print calc
+    (display calc) (engine calc)
     putStr ("> " ++ acc)
 
 doCalculator :: (Show a, Show b, Read a) => Calculator a b -> [Char] -> [Char] -> IO ()
