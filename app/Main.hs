@@ -119,10 +119,10 @@ tryParse calc str =
 parseChar :: Calculator a b -> [Char] -> Char -> (Maybe (Token a), [Char])
 parseChar calc acc ' ' = case tryParse calc acc of (t, r) -> (t, [])
 parseChar calc acc '\n' = case tryParse calc acc of (t, r) -> (t, [])
-parseChar calc [] '\177' = (Nothing, [])
-parseChar calc acc '\177' = case reverse acc of x:xs -> (Nothing, reverse xs)
-parseChar calc [] '\008' = (Nothing, [])
-parseChar calc acc '\008' = case reverse acc of x:xs -> (Nothing, reverse xs)
+parseChar calc [] '\DEL' = (Nothing, [])
+parseChar calc acc '\DEL' = case reverse acc of x:xs -> (Nothing, reverse xs)
+parseChar calc [] '\BS' = (Nothing, [])
+parseChar calc acc '\BS' = case reverse acc of x:xs -> (Nothing, reverse xs)
 parseChar calc acc c =
     let
         newacc = reverse (c:(reverse acc))
@@ -132,17 +132,23 @@ parseChar calc acc c =
         (Just (Num _), []) -> (Nothing, newacc)
         (t, r) -> (t, r)
 
+showCalculator :: (Show a, Show b) => Calculator a b -> [Char] -> IO()
+showCalculator calc acc = do
+            putStr "\ESC[1J\ESC[H"
+            print calc
+            putStr ("> " ++ acc)
+
 doCalculator :: (Show a, Show b, Read a) => Calculator a b -> [Char] -> [Char] -> IO ()
 doCalculator initialCalc acc [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = case parseChar initialCalc acc x of
             (Nothing, rest) -> (initialCalc, rest)
             (Just t, rest) -> 
+                -- special case: if the character caused a token to be returned, it might
+                -- be the case that the remainder is also a valid token (consider the input
+                -- "123+", the + causes the number to be completed as a token but it is
+                -- itself a token.
                 let
-                    -- special case: if the character caused a token to be returned, it might
-                    -- be the case that the remainder is also a valid token (consider the input
-                    -- "123+", the + causes the number to be completed as a token but it is
-                    -- itself a token.
                     calc2 = consumeToken initialCalc t
                 in
                     case tryParse calc2 rest of
@@ -153,16 +159,12 @@ doCalculator initialCalc acc (x:xs) =
         "_f" -> startCalculator floatCalculator xs
         "_i" -> startCalculator intCalculator xs
         other -> do
-            putStrLn ""
-            print newCalc
-            putStr ("> " ++ newAcc)
+            showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
 startCalculator :: (Show a, Show b, Read a) => Calculator a b -> [Char] -> IO ()
 startCalculator calc input = do
-    putStrLn ""
-    print calc
-    putStr "> "
+    showCalculator calc ""
     doCalculator calc "" input
 
 main :: IO ()
