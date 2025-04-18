@@ -129,11 +129,15 @@ intOps = numericOps ++
 
 displayInteger :: Engine Integer OpStateInteger -> IO ()
 displayInteger (Engine (Stack x y z t) opState) = do
+    let format = case (base opState) of
+            BaseBin -> "%b"
+            BaseDec -> "%d"
+            BaseHex -> "%x"
     putStrLn $ show opState
-    printf "t %d\n" t
-    printf "z %d\n" z
-    printf "y %d\n" y
-    printf "x %d\n" x
+    printf ("t " ++ format ++ "\n") t
+    printf ("z " ++ format ++ "\n") z
+    printf ("y " ++ format ++ "\n") y
+    printf ("x " ++ format ++ "\n") x
 
 floatCalculator = Calculator
     { engine = Engine
