@@ -57,6 +57,7 @@ data OpStateInteger = OpStateInteger
     } deriving Show
 data OpStateFloat = OpStateFloat
     { prec :: Maybe Int
+    , width :: Maybe Int
     } deriving Show
 data Engine a b = Engine
     { stack :: Stack a
@@ -95,23 +96,33 @@ numericOps =
         , ("rot", rot)
         ]
 
---setp :: Engine Float OpStateFloat -> Engine Float OpStateFloat
---setp (Engine (Stack x y z t) opState) = Engine (Stack y z t t) opState{prec=x}
+setp :: Engine Float OpStateFloat -> Engine Float OpStateFloat
+setp (Engine (Stack x y z t) ops) = Engine (Stack y z t t) ops{prec=Just $ floor x}
+
+setw :: Engine Float OpStateFloat -> Engine Float OpStateFloat
+setw (Engine (Stack x y z t) ops) = Engine (Stack y z t t) ops{width=Just $ floor x}
 
 floatOps :: [(String, Engine Float OpStateFloat -> Engine Float OpStateFloat)]
 floatOps = numericOps ++
         [ ("/", stackOp2(/))
         , ("clearp", opStateOp (\s -> s{prec = Nothing}))
-        --, ("setp", setp)
+        , ("setp", setp)
+        , ("clearw", opStateOp (\s -> s{width = Nothing}))
+        , ("setw", setw)
         ] 
 
 displayFloat :: Engine Float OpStateFloat -> IO ()
 displayFloat (Engine (Stack x y z t) ops) = do
+    let format = case ((width ops), (prec ops)) of
+            (Nothing, Nothing) -> "%g"
+            (Just w, Nothing) -> printf "%%%dg" w
+            (Nothing, Just p) -> printf "%%.%dg" p
+            (Just w, Just p) -> printf "%%%d.%dg" w p
     putStrLn $ show ops
-    printf "t %f\n" t
-    printf "z %f\n" z
-    printf "y %f\n" y
-    printf "x %f\n" x
+    printf ("t " ++ format ++ "\n") t
+    printf ("z " ++ format ++ "\n") z
+    printf ("y " ++ format ++ "\n") y
+    printf ("x " ++ format ++ "\n") x
 
 setBase :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
 setBase eng@(Engine (Stack x y z t) ops) = case x of
@@ -143,7 +154,7 @@ floatCalculator :: Calculator Float OpStateFloat
 floatCalculator = Calculator
     { engine = Engine
         { stack = Stack 0 0 0 0
-        , opState = OpStateFloat{ prec = Nothing }
+        , opState = OpStateFloat{ prec = Nothing, width = Nothing }
         }
     , opsMap = Map.fromList floatOps
     , readNum = reads :: String -> [(Float,String)] 
