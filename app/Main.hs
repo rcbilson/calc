@@ -5,11 +5,11 @@ import Text.Printf
 
 {- from unix library -}
 import System.Posix.Terminal
-import System.Posix.IO (fdRead, stdInput)
+import System.Posix.IO (stdInput)
 
 {- from base -}
 import System.IO (stdout, hSetBuffering, BufferMode(NoBuffering))
-import Control.Exception (finally, catch, IOException)
+import Control.Exception (finally)
 
 {- https://stackoverflow.com/questions/23068218/haskell-read-raw-keyboard-input
  - run an application in raw input / non-canonical mode with given
@@ -41,7 +41,7 @@ withRawInput vmin vtime application = do
     `finally` setTerminalAttributes stdInput oldTermSettings Immediately
 
 
-data Stack a = Stack { x :: a, y :: a, z :: a, t :: a }
+data Stack a = Stack a a a a
   deriving Show
 
 stackOp1 :: (a -> a) -> Engine a b -> Engine a b
@@ -49,7 +49,7 @@ stackOp1 f (Engine (Stack x y z t) ops) = Engine (Stack (f x) y z t) ops
 stackOp2 :: (a -> a -> a) -> Engine a b -> Engine a b
 stackOp2 f (Engine (Stack x y z t) ops) = Engine (Stack (f y x) z t t) ops
 opStateOp :: (b -> b) -> Engine a b -> Engine a b
-opStateOp f (Engine stack ops) = Engine stack (f ops)
+opStateOp f (Engine stk ops) = Engine stk (f ops)
 
 data Base = BaseDec | BaseHex | BaseBin deriving Show
 data OpStateInteger = OpStateInteger
@@ -73,13 +73,13 @@ instance (Show a, Show b) => Show (Calculator a b) where
     show calc = show (engine calc)
 
 push :: Engine a b -> a -> Engine a b
-push (Engine (Stack x y z t) ops) q = Engine (Stack q x y z) ops
+push (Engine (Stack x y z _) ops) q = Engine (Stack q x y z) ops
 
 dup :: Engine a b -> Engine a b
-dup (Engine (Stack x y z t) ops) = Engine (Stack x x y z) ops
+dup (Engine (Stack x y z _) ops) = Engine (Stack x x y z) ops
 
 swap :: Engine a b -> Engine a b
-swap (Engine (Stack x y z t) ops) = Engine (Stack y x y z) ops
+swap (Engine (Stack x y z t) ops) = Engine (Stack y x z t) ops
 
 rot :: Engine a b -> Engine a b
 rot (Engine (Stack x y z t) ops) = Engine (Stack y z t x) ops
@@ -106,19 +106,19 @@ floatOps = numericOps ++
         ] 
 
 displayFloat :: Engine Float OpStateFloat -> IO ()
-displayFloat (Engine (Stack x y z t) opState) = do
-    putStrLn $ show opState
+displayFloat (Engine (Stack x y z t) ops) = do
+    putStrLn $ show ops
     printf "t %f\n" t
     printf "z %f\n" z
     printf "y %f\n" y
     printf "x %f\n" x
 
 setBase :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
-setBase engine@(Engine (Stack x y z t) opState) = case x of
-    16 -> Engine (Stack y z t t) opState{base=BaseHex}
-    10 -> Engine (Stack y z t t) opState{base=BaseDec}
-    2 -> Engine (Stack y z t t) opState{base=BaseBin}
-    _ -> engine
+setBase eng@(Engine (Stack x y z t) ops) = case x of
+    16 -> Engine (Stack y z t t) ops{base=BaseHex}
+    10 -> Engine (Stack y z t t) ops{base=BaseDec}
+    2 -> Engine (Stack y z t t) ops{base=BaseBin}
+    _ -> eng
 
 intOps :: [(String, Engine Integer OpStateInteger -> Engine Integer OpStateInteger)]
 intOps = numericOps ++
@@ -128,17 +128,18 @@ intOps = numericOps ++
         ]
 
 displayInteger :: Engine Integer OpStateInteger -> IO ()
-displayInteger (Engine (Stack x y z t) opState) = do
-    let format = case (base opState) of
+displayInteger (Engine (Stack x y z t) ops) = do
+    let format = case (base ops) of
             BaseBin -> "%b"
             BaseDec -> "%d"
             BaseHex -> "%x"
-    putStrLn $ show opState
+    putStrLn $ show ops
     printf ("t " ++ format ++ "\n") t
     printf ("z " ++ format ++ "\n") z
     printf ("y " ++ format ++ "\n") y
     printf ("x " ++ format ++ "\n") x
 
+floatCalculator :: Calculator Float OpStateFloat
 floatCalculator = Calculator
     { engine = Engine
         { stack = Stack 0 0 0 0
@@ -149,6 +150,7 @@ floatCalculator = Calculator
     , display = displayFloat
     }
 
+intCalculator :: Calculator Integer OpStateInteger
 intCalculator = Calculator
     { engine = Engine
         { stack = Stack 0 0 0 0
@@ -170,7 +172,7 @@ consumeToken calc token =
         Num n -> calc{engine=push (engine calc) n}
 
 tryParse :: Calculator a b -> [Char] -> (Maybe (Token a), [Char])
-tryParse calc [] = (Nothing, [])
+tryParse _ [] = (Nothing, [])
 tryParse calc str =
     case (readNum calc) str of
         (num, rest):_ -> (Just (Num num), rest)
@@ -179,12 +181,18 @@ tryParse calc str =
             else (Nothing, str)
 
 parseChar :: Calculator a b -> [Char] -> Char -> (Maybe (Token a), [Char])
-parseChar calc acc ' ' = case tryParse calc acc of (t, r) -> (t, [])
-parseChar calc acc '\n' = case tryParse calc acc of (t, r) -> (t, [])
-parseChar calc [] '\DEL' = (Nothing, [])
-parseChar calc acc '\DEL' = case reverse acc of x:xs -> (Nothing, reverse xs)
-parseChar calc [] '\BS' = (Nothing, [])
-parseChar calc acc '\BS' = case reverse acc of x:xs -> (Nothing, reverse xs)
+parseChar calc acc ' ' = case tryParse calc acc of (t, _) -> (t, [])
+parseChar calc acc '\n' = case tryParse calc acc of (t, _) -> (t, [])
+parseChar _ [] '\DEL' = (Nothing, [])
+parseChar _ acc '\DEL' =
+    case reverse acc of
+        [] -> (Nothing, [])
+        _:xs -> (Nothing, reverse xs)
+parseChar _ [] '\BS' = (Nothing, [])
+parseChar _ acc '\BS' =
+    case reverse acc of
+        [] -> (Nothing, [])
+        _:xs -> (Nothing, reverse xs)
 parseChar calc acc c =
     let
         newacc = reverse (c:(reverse acc))
@@ -201,7 +209,7 @@ showCalculator calc acc = do
     putStr ("> " ++ acc)
 
 doCalculator :: (Show a, Show b, Read a) => Calculator a b -> [Char] -> [Char] -> IO ()
-doCalculator initialCalc acc [] = return ()
+doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = case parseChar initialCalc acc x of
             (Nothing, rest) -> (initialCalc, rest)
@@ -214,13 +222,13 @@ doCalculator initialCalc acc (x:xs) =
                     calc2 = consumeToken initialCalc t
                 in
                     case tryParse calc2 rest of
-                        (Nothing, rest) -> (calc2, rest)
-                        (Just t, rest) -> (consumeToken calc2 t, rest)
+                        (Nothing, rest2) -> (calc2, rest2)
+                        (Just t2, rest2) -> (consumeToken calc2 t2, rest2)
     in case newAcc of 
         "_x" -> return ()
         "_f" -> startCalculator floatCalculator xs
         "_i" -> startCalculator intCalculator xs
-        other -> do
+        _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
