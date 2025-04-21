@@ -54,6 +54,7 @@ opStateOp f (Engine stk ops) = Engine stk (f ops)
 data Base = BaseDec | BaseHex | BaseBin deriving Show
 data OpStateInteger = OpStateInteger
     { base :: Base
+    , wsize :: Maybe Integer
     } deriving Show
 data OpStateFloat = OpStateFloat
     { prec :: Maybe Int
@@ -124,18 +125,27 @@ displayFloat (Engine (Stack x y z t) ops) = do
     printf ("y " ++ format ++ "\n") y
     printf ("x " ++ format ++ "\n") x
 
-setBase :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
-setBase eng@(Engine (Stack x y z t) ops) = case x of
-    16 -> Engine (Stack y z t t) ops{base=BaseHex}
-    10 -> Engine (Stack y z t t) ops{base=BaseDec}
-    2 -> Engine (Stack y z t t) ops{base=BaseBin}
-    _ -> eng
+bin :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
+bin (Engine stk ops) = Engine stk ops{base=BaseBin}
+
+dec :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
+dec (Engine stk ops) = Engine stk ops{base=BaseDec}
+
+hex :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
+hex (Engine stk ops) = Engine stk ops{base=BaseHex}
+
+setwsize :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
+setwsize (Engine (Stack x y z t) ops) = Engine (Stack y z t t) ops{wsize=Just x}
 
 intOps :: [(String, Engine Integer OpStateInteger -> Engine Integer OpStateInteger)]
 intOps = numericOps ++
-        [ ("base", setBase)
+        [ ("bin", bin)
+        , ("dec", dec)
+        , ("hex", hex)
         , ("/", stackOp2(div))
         , ("%", stackOp2(mod))
+        , ("clearw", opStateOp (\s -> s{wsize = Nothing}))
+        , ("setw", setwsize)
         ]
 
 intDigit :: Integral a => a -> Char
@@ -165,16 +175,19 @@ chunk n xs
     | length xs > n = (take n xs) ++ " " ++ (chunk n $ drop n xs)
     | otherwise     = xs
 
+formatNoWsize :: Integral a => a -> Int -> a -> [Char]
+formatNoWsize b c v
+    | v == 0    = "0"
+    | v < 0     = '-':(formatNoWsize b c (-v))
+    | otherwise = (reverse . chunk c . map intDigit) $ remainders b v
+
 displayInteger :: Engine Integer OpStateInteger -> IO ()
 displayInteger (Engine (Stack x y z t) ops) = do
     let (b, c) = case (base ops) of
             BaseBin -> (2, 4)
             BaseDec -> (10, 3)
             BaseHex -> (16, 4)
-        format v
-            | v == 0    = "0"
-            | v < 0     = '-':(format (-v))
-            | otherwise = (reverse . chunk c . map intDigit) $ remainders b v
+        format = formatNoWsize b c
     putStrLn $ show ops
     putStrLn $ "t " ++ (format t)
     putStrLn $ "z " ++ (format z)
@@ -196,7 +209,7 @@ intCalculator :: Calculator Integer OpStateInteger
 intCalculator = Calculator
     { engine = Engine
         { stack = Stack 0 0 0 0
-        , opState = OpStateInteger { base = BaseDec }
+        , opState = OpStateInteger { base = BaseDec, wsize = Nothing }
         }
     , opsMap = Map.fromList intOps
     , readNum = reads :: String -> [(Integer,String)] 
