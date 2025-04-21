@@ -138,17 +138,48 @@ intOps = numericOps ++
         , ("%", stackOp2(mod))
         ]
 
+intDigit :: Integral a => a -> Char
+intDigit 0 = '0'
+intDigit 1 = '1'
+intDigit 2 = '2'
+intDigit 3 = '3'
+intDigit 4 = '4'
+intDigit 5 = '5'
+intDigit 6 = '6'
+intDigit 7 = '7'
+intDigit 8 = '8'
+intDigit 9 = '9'
+intDigit 10 = 'a'
+intDigit 11 = 'b'
+intDigit 12 = 'c'
+intDigit 13 = 'd'
+intDigit 14 = 'e'
+intDigit 15 = 'f'
+
+remainders :: Integral a => a -> a -> [a]
+remainders _ 0 = []
+remainders divisor dividend = (dividend `mod` divisor):(remainders divisor $ dividend `div` divisor)
+
+chunk :: Int -> [Char] -> [Char]
+chunk n xs
+    | length xs > n = (take n xs) ++ " " ++ (chunk n $ drop n xs)
+    | otherwise     = xs
+
 displayInteger :: Engine Integer OpStateInteger -> IO ()
 displayInteger (Engine (Stack x y z t) ops) = do
-    let format = case (base ops) of
-            BaseBin -> "%b"
-            BaseDec -> "%d"
-            BaseHex -> "%x"
+    let (b, c) = case (base ops) of
+            BaseBin -> (2, 4)
+            BaseDec -> (10, 3)
+            BaseHex -> (16, 4)
+        format v
+            | v == 0    = "0"
+            | v < 0     = '-':(format (-v))
+            | otherwise = (reverse . chunk c . map intDigit) $ remainders b v
     putStrLn $ show ops
-    printf ("t " ++ format ++ "\n") t
-    printf ("z " ++ format ++ "\n") z
-    printf ("y " ++ format ++ "\n") y
-    printf ("x " ++ format ++ "\n") x
+    putStrLn $ "t " ++ (format t)
+    putStrLn $ "z " ++ (format z)
+    putStrLn $ "y " ++ (format y)
+    putStrLn $ "x " ++ (format x)
 
 floatCalculator :: Calculator Float OpStateFloat
 floatCalculator = Calculator
@@ -252,4 +283,4 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     input <- getContents
-    withRawInput 0 0 $ startCalculator floatCalculator input
+    withRawInput 0 0 $ startCalculator intCalculator input
