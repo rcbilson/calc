@@ -230,7 +230,12 @@ tryParse :: Calculator a b -> [Char] -> (Maybe (Token a), [Char])
 tryParse _ [] = (Nothing, [])
 tryParse calc str =
     case (readNum calc) str of
-        (num, rest):_ -> (Just (Num num), rest)
+        (num, rest):_ ->
+            -- Special case: if it's a valid number with a period following
+            -- it could continue on to be some real number, so continue
+            -- accumulating characters.
+            if rest == "." then (Nothing, str)
+            else (Just (Num num), rest)
         [] ->
             if Map.member str (opsMap calc) then (Just (Op str), [])
             else (Nothing, str)
