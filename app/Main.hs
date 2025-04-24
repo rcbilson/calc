@@ -46,8 +46,8 @@ data Stack a = Stack a a a a
 
 stackOp1 :: (a -> a) -> Engine a b -> Engine a b
 stackOp1 f (Engine (Stack x y z t) ops) = Engine (Stack (f x) y z t) ops
-stackOp2 :: (a -> a -> a) -> Engine a b -> Engine a b
-stackOp2 f (Engine (Stack x y z t) ops) = Engine (Stack (f y x) z t t) ops
+stackOp2 :: Num a => (a -> a -> a) -> Engine a b -> Engine a b
+stackOp2 f (Engine (Stack x y z t) ops) = Engine (Stack (f y x) z t 0) ops
 opStateOp :: (b -> b) -> Engine a b -> Engine a b
 opStateOp f (Engine stk ops) = Engine stk (f ops)
 
@@ -98,10 +98,10 @@ numericOps =
         ]
 
 setp :: Engine Float OpStateFloat -> Engine Float OpStateFloat
-setp (Engine (Stack x y z t) ops) = Engine (Stack y z t t) ops{prec=Just $ floor x}
+setp (Engine (Stack x y z t) ops) = Engine (Stack y z t 0) ops{prec=Just $ floor x}
 
 setw :: Engine Float OpStateFloat -> Engine Float OpStateFloat
-setw (Engine (Stack x y z t) ops) = Engine (Stack y z t t) ops{width=Just $ floor x}
+setw (Engine (Stack x y z t) ops) = Engine (Stack y z t 0) ops{width=Just $ floor x}
 
 floatOps :: [(String, Engine Float OpStateFloat -> Engine Float OpStateFloat)]
 floatOps = numericOps ++
@@ -135,7 +135,7 @@ hex :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
 hex (Engine stk ops) = Engine stk ops{base=BaseHex}
 
 setwsize :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
-setwsize (Engine (Stack x y z t) ops) = Engine (Stack y z t t) ops{wsize=Just x}
+setwsize (Engine (Stack x y z t) ops) = Engine (Stack y z t 0) ops{wsize=Just x}
 
 intOps :: [(String, Engine Integer OpStateInteger -> Engine Integer OpStateInteger)]
 intOps = numericOps ++
