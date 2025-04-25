@@ -1,6 +1,8 @@
 module Main where
 
 import qualified Data.Map.Strict as Map
+import Data.Bits
+import Data.Word
 import Text.Printf
 
 {- from unix library -}
@@ -54,7 +56,6 @@ opStateOp f (Engine stk ops) = Engine stk (f ops)
 data Base = BaseDec | BaseHex | BaseBin deriving Show
 data OpStateInteger = OpStateInteger
     { base :: Base
-    , wsize :: Maybe Integer
     } deriving Show
 data OpStateFloat = OpStateFloat
     { prec :: Maybe Int
@@ -125,27 +126,22 @@ displayFloat (Engine (Stack x y z t) ops) = do
     printf ("y " ++ format ++ "\n") y
     printf ("x " ++ format ++ "\n") x
 
-bin :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
+bin :: Integral a => Engine a OpStateInteger -> Engine a OpStateInteger
 bin (Engine stk ops) = Engine stk ops{base=BaseBin}
 
-dec :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
+dec :: Integral a => Engine a OpStateInteger -> Engine a OpStateInteger
 dec (Engine stk ops) = Engine stk ops{base=BaseDec}
 
-hex :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
+hex :: Integral a => Engine a OpStateInteger -> Engine a OpStateInteger
 hex (Engine stk ops) = Engine stk ops{base=BaseHex}
 
-setwsize :: Engine Integer OpStateInteger -> Engine Integer OpStateInteger
-setwsize (Engine (Stack x y z t) ops) = Engine (Stack y z t 0) ops{wsize=Just x}
-
-intOps :: [(String, Engine Integer OpStateInteger -> Engine Integer OpStateInteger)]
+intOps :: Integral a => [(String, Engine a OpStateInteger -> Engine a OpStateInteger)]
 intOps = numericOps ++
         [ ("bin", bin)
         , ("dec", dec)
         , ("hex", hex)
         , ("/", stackOp2(div))
         , ("%", stackOp2(mod))
-        , ("clearw", opStateOp (\s -> s{wsize = Nothing}))
-        , ("setw", setwsize)
         ]
 
 intDigit :: Integral a => a -> Char
@@ -181,18 +177,39 @@ formatNoWsize b c v
     | v < 0     = '-':(formatNoWsize b c (-v))
     | otherwise = (reverse . chunk c . map intDigit) $ remainders b v
 
-displayInteger :: Engine Integer OpStateInteger -> IO ()
-displayInteger (Engine (Stack x y z t) ops) = do
-    let (b, c) = case (base ops) of
-            BaseBin -> (2, 4)
-            BaseDec -> (10, 3)
-            BaseHex -> (16, 4)
-        format = formatNoWsize b c
+formatWsize :: Integral a => Int -> a -> Int -> a -> [Char]
+formatWsize w b c v
+  | n < w     = reverse $ chunk c $ f ++ (replicate (w-n) '0')
+  | otherwise = reverse $ chunk c $ f
+  where
+    f = map intDigit $ remainders b v
+    n = length f
+
+displayIntegral :: Integral a => (a -> [Char]) -> Engine a OpStateInteger -> IO ()
+displayIntegral format (Engine (Stack x y z t) ops) = do
     putStrLn $ show ops
     putStrLn $ "t " ++ (format t)
     putStrLn $ "z " ++ (format z)
     putStrLn $ "y " ++ (format y)
     putStrLn $ "x " ++ (format x)
+
+displayInteger :: Integral a => Engine a OpStateInteger -> IO ()
+displayInteger eng@(Engine _ ops) =
+    let (b, c) = case (base ops) of
+            BaseBin -> (2, 4)
+            BaseDec -> (10, 3)
+            BaseHex -> (16, 4)
+        format = formatNoWsize b c
+    in displayIntegral format eng
+
+displayFixed :: (Integral a, FiniteBits a) => Engine a OpStateInteger -> IO ()
+displayFixed eng@(Engine (Stack x _ _ _) ops) =
+    let (b, c, w) = case (base ops) of
+            BaseBin -> (2, 4, (finiteBitSize x))
+            BaseDec -> (10, 3, 1)
+            BaseHex -> (16, 4, (finiteBitSize x) `div` 4)
+        format = formatWsize w b c
+    in displayIntegral format eng
 
 floatCalculator :: Calculator Float OpStateFloat
 floatCalculator = Calculator
@@ -209,11 +226,25 @@ intCalculator :: Calculator Integer OpStateInteger
 intCalculator = Calculator
     { engine = Engine
         { stack = Stack 0 0 0 0
-        , opState = OpStateInteger { base = BaseDec, wsize = Nothing }
+        , opState = OpStateInteger { base = BaseDec }
         }
     , opsMap = Map.fromList intOps
     , readNum = reads :: String -> [(Integer,String)] 
     , display = displayInteger
+    }
+
+readFixed :: (Read a, FiniteBits a) => String -> [(a,String)] 
+readFixed = reads
+
+fixedCalculator :: (Integral a, FiniteBits a, Read a) => Calculator a OpStateInteger
+fixedCalculator = Calculator
+    { engine = Engine
+        { stack = Stack 0 0 0 0
+        , opState = OpStateInteger { base = BaseDec }
+        }
+    , opsMap = Map.fromList intOps
+    , readNum = readFixed
+    , display = displayFixed
     }
 
 data Token a = Op String | Num a deriving Show
@@ -288,6 +319,10 @@ doCalculator initialCalc acc (x:xs) =
         "_x" -> return ()
         "_f" -> startCalculator floatCalculator xs
         "_i" -> startCalculator intCalculator xs
+        "_8" -> startCalculator (fixedCalculator :: Calculator Word8 OpStateInteger) xs
+        "_16" -> startCalculator (fixedCalculator :: Calculator Word16 OpStateInteger) xs
+        "_32" -> startCalculator (fixedCalculator :: Calculator Word32 OpStateInteger) xs
+        "_64" -> startCalculator (fixedCalculator :: Calculator Word64 OpStateInteger) xs
         _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
