@@ -260,7 +260,10 @@ consumeToken calc token =
 tryParse :: Calculator a b -> [Char] -> (Maybe (Token a), [Char])
 tryParse _ [] = (Nothing, [])
 tryParse calc str =
-    case (readNum calc) str of
+    -- Special case: if it's 0x or 0X it could be the beginning of
+    -- a valid hex number so let it ride.
+    if str == "0x" || str == "0X" then (Nothing, str)
+    else case (readNum calc) str of
         (num, rest):_ ->
             -- Special case: if it's a valid number with a period following
             -- it could continue on to be some real number, so continue
