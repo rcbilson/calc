@@ -262,8 +262,11 @@ tryParse _ [] = (Nothing, [])
 tryParse calc str =
     -- Special case: if it's 0x or 0X it could be the beginning of
     -- a valid hex number so let it ride.
-    if str == "0x" || str == "0X" then (Nothing, str)
-    else case (readNum calc) str of
+    case str of
+      "0x" -> (Nothing, str)
+      "0X" -> (Nothing, str)
+      "_" -> (Nothing, "-")
+      _ -> case (readNum calc) str of
         (num, rest):_ ->
             -- Special case: if it's a valid number with a period following
             -- it could continue on to be some real number, so continue
@@ -319,13 +322,13 @@ doCalculator initialCalc acc (x:xs) =
                         (Nothing, rest2) -> (calc2, rest2)
                         (Just t2, rest2) -> (consumeToken calc2 t2, rest2)
     in case newAcc of 
-        "_x" -> return ()
-        "_f" -> startCalculator floatCalculator xs
-        "_i" -> startCalculator intCalculator xs
-        "_8" -> startCalculator (fixedCalculator :: Calculator Word8 OpStateInteger) xs
-        "_16" -> startCalculator (fixedCalculator :: Calculator Word16 OpStateInteger) xs
-        "_32" -> startCalculator (fixedCalculator :: Calculator Word32 OpStateInteger) xs
-        "_64" -> startCalculator (fixedCalculator :: Calculator Word64 OpStateInteger) xs
+        "\\x" -> return ()
+        "\\f" -> startCalculator floatCalculator xs
+        "\\i" -> startCalculator intCalculator xs
+        "\\8" -> startCalculator (fixedCalculator :: Calculator Word8 OpStateInteger) xs
+        "\\16" -> startCalculator (fixedCalculator :: Calculator Word16 OpStateInteger) xs
+        "\\32" -> startCalculator (fixedCalculator :: Calculator Word32 OpStateInteger) xs
+        "\\64" -> startCalculator (fixedCalculator :: Calculator Word64 OpStateInteger) xs
         _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
