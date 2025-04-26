@@ -135,14 +135,25 @@ dec (Engine stk ops) = Engine stk ops{base=BaseDec}
 hex :: Integral a => Engine a OpStateInteger -> Engine a OpStateInteger
 hex (Engine stk ops) = Engine stk ops{base=BaseHex}
 
-intOps :: Integral a => [(String, Engine a OpStateInteger -> Engine a OpStateInteger)]
+intOps :: (Integral a, Bits a) => [(String, Engine a OpStateInteger -> Engine a OpStateInteger)]
 intOps = numericOps ++
         [ ("bin", bin)
         , ("dec", dec)
         , ("hex", hex)
-        , ("/", stackOp2(div))
-        , ("%", stackOp2(mod))
+        , ("/", stackOp2 div)
+        , ("%", stackOp2 mod)
+        , ("&", stackOp2(.&.))
+        , ("|", stackOp2(.|.))
+        , ("^", stackOp2 xor)
+        , ("!", stackOp1 complement)
+        , ("shift", stackOp2 $ placeValueOp shift)
+        , ("<", stackOp1 $ (flip shift) 1)
+        , (">", stackOp1 $ (flip shift) (-1))
+        , ("sb", stackOp2 $ placeValueOp setBit)
+        , ("cb", stackOp2 $ placeValueOp clearBit)
         ]
+    where
+        placeValueOp op val place = op val (fromIntegral place)
 
 intDigit :: Integral a => a -> Char
 intDigit 0 = '0'
