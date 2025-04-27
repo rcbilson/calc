@@ -43,16 +43,19 @@ withRawInput vmin vtime application = do
     `finally` setTerminalAttributes stdInput oldTermSettings Immediately
 
 
-data Stack a = Stack a a a a
-  deriving Show
+type Stack a = [a]
 
-instance Functor Stack where
-    fmap f (Stack x y z t) = Stack (f x) (f y) (f z) (f t)
+ensureStack :: Num a => Stack a -> Stack a
+ensureStack stk
+    | length(stk) < 4 = ensureStack (stk ++ [0])
+    | otherwise       = stk
 
 stackOp1 :: (a -> a) -> Engine a b -> Engine a b
-stackOp1 f (Engine (Stack x y z t) ops) = Engine (Stack (f x) y z t) ops
+stackOp1 f (Engine (x:xs) ops) = Engine ((f x):xs) ops
+stackOp1 _ _ = error("stackOp1 underflow")
 stackOp2 :: Num a => (a -> a -> a) -> Engine a b -> Engine a b
-stackOp2 f (Engine (Stack x y z t) ops) = Engine (Stack (f y x) z t 0) ops
+stackOp2 f (Engine (x:y:xs) ops) = Engine (ensureStack $ (f y x):xs) ops
+stackOp2 _ _ = error("stackOp2 underflow")
 opStateOp :: (b -> b) -> Engine a b -> Engine a b
 opStateOp f (Engine stk ops) = Engine stk (f ops)
 
@@ -125,16 +128,15 @@ instance OpState OpStateFloat where
     toOpStateFloat = id
 
 push :: Engine a b -> a -> Engine a b
-push (Engine (Stack x y z _) ops) q = Engine (Stack q x y z) ops
+push (Engine stk ops) q = Engine (q:stk) ops
 
 dup :: Engine a b -> Engine a b
-dup (Engine (Stack x y z _) ops) = Engine (Stack x x y z) ops
+dup (Engine (x:xs) ops) = Engine (x:x:xs) ops
+dup _ = error("dup underflow")
 
 swap :: Engine a b -> Engine a b
-swap (Engine (Stack x y z t) ops) = Engine (Stack y x z t) ops
-
-rot :: Engine a b -> Engine a b
-rot (Engine (Stack x y z t) ops) = Engine (Stack y z t x) ops
+swap (Engine (x:y:xs) ops) = Engine (y:x:xs) ops
+swap _ = error("swap underflow")
 
 numericOps :: Num a => [(String, Engine a b -> Engine a b)]
 numericOps =
@@ -144,14 +146,15 @@ numericOps =
         , ("neg", stackOp1 negate)
         , ("dup", dup)
         , ("swap", swap)
-        , ("rot", rot)
         ]
 
 setp :: Engine Float OpStateFloat -> Engine Float OpStateFloat
-setp (Engine (Stack x y z t) ops) = Engine (Stack y z t 0) ops{prec=Just $ floor x}
+setp (Engine (x:xs) ops) = Engine (ensureStack xs) ops{prec=Just $ floor x}
+setp _ = error("setp underflow")
 
 setw :: Engine Float OpStateFloat -> Engine Float OpStateFloat
-setw (Engine (Stack x y z t) ops) = Engine (Stack y z t 0) ops{width=Just $ floor x}
+setw (Engine (x:xs) ops) = Engine (ensureStack xs) ops{width=Just $ floor x}
+setw _ = error("setw underflow")
 
 floatOps :: [(String, Engine Float OpStateFloat -> Engine Float OpStateFloat)]
 floatOps = numericOps ++
@@ -164,7 +167,7 @@ floatOps = numericOps ++
         ] 
 
 displayFloat :: Engine Float OpStateFloat -> IO ()
-displayFloat (Engine (Stack x y z t) ops) = do
+displayFloat (Engine (x:y:z:t:_) ops) = do
     let format = case ((width ops), (prec ops)) of
             (Nothing, Nothing) -> "%g"
             (Just w, Nothing) -> printf "%%%dg" w
@@ -175,6 +178,7 @@ displayFloat (Engine (Stack x y z t) ops) = do
     printf ("z " ++ format ++ "\n") z
     printf ("y " ++ format ++ "\n") y
     printf ("x " ++ format ++ "\n") x
+displayFloat _ = error("displayFloat underflow")
 
 bin :: Integral a => Engine a OpStateInteger -> Engine a OpStateInteger
 bin (Engine stk ops) = Engine stk ops{base=BaseBin}
@@ -249,12 +253,13 @@ formatWsize w b c v
     n = length f
 
 displayIntegral :: Integral a => (a -> [Char]) -> Engine a OpStateInteger -> IO ()
-displayIntegral format (Engine (Stack x y z t) ops) = do
+displayIntegral format (Engine (x:y:z:t:_) ops) = do
     putStrLn $ show ops
     putStrLn $ "t " ++ (format t)
     putStrLn $ "z " ++ (format z)
     putStrLn $ "y " ++ (format y)
     putStrLn $ "x " ++ (format x)
+displayIntegral _ _ = error("displayIntegral underflow")
 
 displayInteger :: Integral a => Engine a OpStateInteger -> IO ()
 displayInteger eng@(Engine _ ops) =
@@ -266,13 +271,14 @@ displayInteger eng@(Engine _ ops) =
     in displayIntegral format eng
 
 displayFixed :: (Integral a, FiniteBits a) => Engine a OpStateInteger -> IO ()
-displayFixed eng@(Engine (Stack x _ _ _) ops) =
+displayFixed eng@(Engine (x:_) ops) =
     let (b, c, w) = case (base ops) of
             BaseBin -> (2, 4, (finiteBitSize x))
             BaseDec -> (10, 3, 1)
             BaseHex -> (16, 4, (finiteBitSize x) `div` 4)
         format = formatWsize w b c
     in displayIntegral format eng
+displayFixed _ = error("displayFixed underflow")
 
 floatCalculator :: Stack Float -> OpStateFloat -> Calculator Float OpStateFloat
 floatCalculator initialStack initialState = Calculator
@@ -425,5 +431,5 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     input <- getContents
-    let initialCalc = intCalculator (Stack 0 0 0 0) opStateIntegerDefault
+    let initialCalc = intCalculator [0,0,0,0] opStateIntegerDefault
     withRawInput 0 0 $ startCalculator initialCalc input
