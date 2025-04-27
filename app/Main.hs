@@ -46,12 +46,43 @@ withRawInput vmin vtime application = do
 data Stack a = Stack a a a a
   deriving Show
 
+instance Functor Stack where
+    fmap f (Stack x y z t) = Stack (f x) (f y) (f z) (f t)
+
 stackOp1 :: (a -> a) -> Engine a b -> Engine a b
 stackOp1 f (Engine (Stack x y z t) ops) = Engine (Stack (f x) y z t) ops
 stackOp2 :: Num a => (a -> a -> a) -> Engine a b -> Engine a b
 stackOp2 f (Engine (Stack x y z t) ops) = Engine (Stack (f y x) z t 0) ops
 opStateOp :: (b -> b) -> Engine a b -> Engine a b
 opStateOp f (Engine stk ops) = Engine stk (f ops)
+
+class CalcType a where
+    toFloat :: a -> Float
+    toInt :: a -> Integer
+
+instance CalcType Integer where
+    toFloat x = fromIntegral x
+    toInt x = x
+
+instance CalcType Word8 where
+    toFloat x = fromIntegral x
+    toInt x = fromIntegral x
+
+instance CalcType Word16 where
+    toFloat x = fromIntegral x
+    toInt x = fromIntegral x
+
+instance CalcType Word32 where
+    toFloat x = fromIntegral x
+    toInt x = fromIntegral x
+
+instance CalcType Word64 where
+    toFloat x = fromIntegral x
+    toInt x = fromIntegral x
+
+instance CalcType Float where
+    toFloat x = x
+    toInt x = floor x
 
 data Base = BaseDec | BaseHex | BaseBin deriving Show
 data OpStateInteger = OpStateInteger
@@ -222,10 +253,10 @@ displayFixed eng@(Engine (Stack x _ _ _) ops) =
         format = formatWsize w b c
     in displayIntegral format eng
 
-floatCalculator :: Calculator Float OpStateFloat
-floatCalculator = Calculator
+floatCalculator :: Stack Float -> Calculator Float OpStateFloat
+floatCalculator initialStack = Calculator
     { engine = Engine
-        { stack = Stack 0 0 0 0
+        { stack = initialStack
         , opState = OpStateFloat{ prec = Nothing, width = Nothing }
         }
     , opsMap = Map.fromList floatOps
@@ -233,10 +264,10 @@ floatCalculator = Calculator
     , display = displayFloat
     }
 
-intCalculator :: Calculator Integer OpStateInteger
-intCalculator = Calculator
+intCalculator :: Stack Integer -> Calculator Integer OpStateInteger
+intCalculator initialStack = Calculator
     { engine = Engine
-        { stack = Stack 0 0 0 0
+        { stack = initialStack
         , opState = OpStateInteger { base = BaseDec }
         }
     , opsMap = Map.fromList intOps
@@ -247,10 +278,10 @@ intCalculator = Calculator
 readFixed :: (Read a, FiniteBits a) => String -> [(a,String)] 
 readFixed = reads
 
-fixedCalculator :: (Integral a, FiniteBits a, Read a) => Calculator a OpStateInteger
-fixedCalculator = Calculator
+fixedCalculator :: (Integral a, FiniteBits a, Read a) => Stack a -> Calculator a OpStateInteger
+fixedCalculator initialStack = Calculator
     { engine = Engine
-        { stack = Stack 0 0 0 0
+        { stack = initialStack
         , opState = OpStateInteger { base = BaseDec }
         }
     , opsMap = Map.fromList intOps
@@ -316,7 +347,23 @@ showCalculator calc acc = do
     (display calc) (engine calc)
     putStr ("> " ++ acc)
 
-doCalculator :: (Show a, Show b, Read a) => Calculator a b -> [Char] -> [Char] -> IO ()
+convertToFloat :: CalcType a => Calculator a b -> Calculator Float OpStateFloat
+convertToFloat calc =
+    let
+        oldStack = stack $ engine $ calc
+        newStack = fmap toFloat oldStack
+    in
+        floatCalculator newStack
+
+convertToIntegral :: (CalcType a, Integral b) => Calculator a c -> (Stack b -> Calculator b OpStateInteger) -> Calculator b OpStateInteger
+convertToIntegral calc construct = 
+    let
+        oldStack = stack $ engine $ calc
+        newStack = fmap (fromIntegral . toInt) oldStack
+    in
+        construct newStack
+
+doCalculator :: (Show a, Show b, Read a, CalcType a) => Calculator a b -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = case parseChar initialCalc acc x of
@@ -334,17 +381,17 @@ doCalculator initialCalc acc (x:xs) =
                         (Just t2, rest2) -> (consumeToken calc2 t2, rest2)
     in case newAcc of 
         "\\x" -> return ()
-        "\\f" -> startCalculator floatCalculator xs
-        "\\i" -> startCalculator intCalculator xs
-        "\\8" -> startCalculator (fixedCalculator :: Calculator Word8 OpStateInteger) xs
-        "\\16" -> startCalculator (fixedCalculator :: Calculator Word16 OpStateInteger) xs
-        "\\32" -> startCalculator (fixedCalculator :: Calculator Word32 OpStateInteger) xs
-        "\\64" -> startCalculator (fixedCalculator :: Calculator Word64 OpStateInteger) xs
+        "\\f" -> startCalculator (convertToFloat newCalc) xs
+        "\\i" -> startCalculator (convertToIntegral newCalc intCalculator) xs
+        "\\8" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word8 OpStateInteger) xs
+        "\\16" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word16 OpStateInteger) xs
+        "\\32" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word32 OpStateInteger) xs
+        "\\64" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word64 OpStateInteger) xs
         _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
-startCalculator :: (Show a, Show b, Read a) => Calculator a b -> [Char] -> IO ()
+startCalculator :: (Show a, Show b, Read a, CalcType a) => Calculator a b -> [Char] -> IO ()
 startCalculator calc input = do
     showCalculator calc ""
     doCalculator calc "" input
@@ -353,4 +400,4 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     input <- getContents
-    withRawInput 0 0 $ startCalculator intCalculator input
+    withRawInput 0 0 $ startCalculator (intCalculator (Stack 0 0 0 0)) input
