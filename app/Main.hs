@@ -138,6 +138,7 @@ setw (Engine (Stack x y z t) ops) = Engine (Stack y z t 0) ops{width=Just $ floo
 floatOps :: [(String, Engine Float OpStateFloat -> Engine Float OpStateFloat)]
 floatOps = numericOps ++
         [ ("/", stackOp2(/))
+        , ("^", stackOp2(**))
         , ("clearp", opStateOp (\s -> s{prec = Nothing}))
         , ("setp", setp)
         , ("clearw", opStateOp (\s -> s{width = Nothing}))
@@ -171,11 +172,12 @@ intOps = numericOps ++
         [ ("bin", bin)
         , ("dec", dec)
         , ("hex", hex)
+        , ("^", stackOp2(^))
         , ("/", stackOp2 div)
         , ("%", stackOp2 mod)
         , ("&", stackOp2(.&.))
         , ("|", stackOp2(.|.))
-        , ("^", stackOp2 xor)
+        , ("~", stackOp2 xor)
         , ("!", stackOp1 complement)
         , ("shift", stackOp2 $ placeValueOp shift)
         , ("<", stackOp1 $ (flip shift) 1)
@@ -203,6 +205,7 @@ intDigit 12 = 'c'
 intDigit 13 = 'd'
 intDigit 14 = 'e'
 intDigit 15 = 'f'
+intDigit _  = error("invalid digit")
 
 remainders :: Integral a => a -> a -> [a]
 remainders _ 0 = []
