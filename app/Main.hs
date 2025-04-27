@@ -106,6 +106,24 @@ data Calculator a b = Calculator
 instance (Show a, Show b) => Show (Calculator a b) where
     show calc = show (engine calc)
 
+opStateFloatDefault :: OpStateFloat
+opStateFloatDefault = OpStateFloat{ prec = Nothing, width = Nothing }
+
+opStateIntegerDefault :: OpStateInteger
+opStateIntegerDefault = OpStateInteger { base = BaseDec }
+
+class OpState a where
+    toOpStateInteger :: a -> OpStateInteger
+    toOpStateFloat :: a -> OpStateFloat
+
+instance OpState OpStateInteger where
+    toOpStateInteger = id
+    toOpStateFloat _ = opStateFloatDefault
+
+instance OpState OpStateFloat where
+    toOpStateInteger _ = opStateIntegerDefault
+    toOpStateFloat = id
+
 push :: Engine a b -> a -> Engine a b
 push (Engine (Stack x y z _) ops) q = Engine (Stack q x y z) ops
 
@@ -256,22 +274,22 @@ displayFixed eng@(Engine (Stack x _ _ _) ops) =
         format = formatWsize w b c
     in displayIntegral format eng
 
-floatCalculator :: Stack Float -> Calculator Float OpStateFloat
-floatCalculator initialStack = Calculator
+floatCalculator :: Stack Float -> OpStateFloat -> Calculator Float OpStateFloat
+floatCalculator initialStack initialState = Calculator
     { engine = Engine
         { stack = initialStack
-        , opState = OpStateFloat{ prec = Nothing, width = Nothing }
+        , opState = initialState
         }
     , opsMap = Map.fromList floatOps
     , readNum = reads :: String -> [(Float,String)] 
     , display = displayFloat
     }
 
-intCalculator :: Stack Integer -> Calculator Integer OpStateInteger
-intCalculator initialStack = Calculator
+intCalculator :: Stack Integer -> OpStateInteger -> Calculator Integer OpStateInteger
+intCalculator initialStack initialState = Calculator
     { engine = Engine
         { stack = initialStack
-        , opState = OpStateInteger { base = BaseDec }
+        , opState = initialState
         }
     , opsMap = Map.fromList intOps
     , readNum = reads :: String -> [(Integer,String)] 
@@ -281,11 +299,11 @@ intCalculator initialStack = Calculator
 readFixed :: (Read a, FiniteBits a) => String -> [(a,String)] 
 readFixed = reads
 
-fixedCalculator :: (Integral a, FiniteBits a, Read a) => Stack a -> Calculator a OpStateInteger
-fixedCalculator initialStack = Calculator
+fixedCalculator :: (Integral a, FiniteBits a, Read a) => Stack a -> OpStateInteger -> Calculator a OpStateInteger
+fixedCalculator initialStack initialState = Calculator
     { engine = Engine
         { stack = initialStack
-        , opState = OpStateInteger { base = BaseDec }
+        , opState = initialState
         }
     , opsMap = Map.fromList intOps
     , readNum = readFixed
@@ -350,23 +368,27 @@ showCalculator calc acc = do
     (display calc) (engine calc)
     putStr ("> " ++ acc)
 
-convertToFloat :: CalcType a => Calculator a b -> Calculator Float OpStateFloat
+convertToFloat :: (CalcType a, OpState b) => Calculator a b -> Calculator Float OpStateFloat
 convertToFloat calc =
     let
         oldStack = stack $ engine $ calc
         newStack = fmap toFloat oldStack
+        oldState = opState $ engine $ calc
+        newState = toOpStateFloat oldState
     in
-        floatCalculator newStack
+        floatCalculator newStack newState
 
-convertToIntegral :: (CalcType a, Integral b) => Calculator a c -> (Stack b -> Calculator b OpStateInteger) -> Calculator b OpStateInteger
+convertToIntegral :: (CalcType a, Integral b, OpState c) => Calculator a c -> (Stack b -> OpStateInteger -> Calculator b OpStateInteger) -> Calculator b OpStateInteger
 convertToIntegral calc construct = 
     let
         oldStack = stack $ engine $ calc
         newStack = fmap (fromIntegral . toInt) oldStack
+        oldState = opState $ engine $ calc
+        newState = toOpStateInteger oldState
     in
-        construct newStack
+        construct newStack newState
 
-doCalculator :: (Show a, Show b, Read a, CalcType a) => Calculator a b -> [Char] -> [Char] -> IO ()
+doCalculator :: (Show a, Show b, Read a, CalcType a, OpState b) => Calculator a b -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = case parseChar initialCalc acc x of
@@ -394,7 +416,7 @@ doCalculator initialCalc acc (x:xs) =
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
-startCalculator :: (Show a, Show b, Read a, CalcType a) => Calculator a b -> [Char] -> IO ()
+startCalculator :: (Show a, Show b, Read a, CalcType a, OpState b) => Calculator a b -> [Char] -> IO ()
 startCalculator calc input = do
     showCalculator calc ""
     doCalculator calc "" input
@@ -403,4 +425,5 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     input <- getContents
-    withRawInput 0 0 $ startCalculator (intCalculator (Stack 0 0 0 0)) input
+    let initialCalc = intCalculator (Stack 0 0 0 0) opStateIntegerDefault
+    withRawInput 0 0 $ startCalculator initialCalc input
