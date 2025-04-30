@@ -40,7 +40,7 @@ jobs:
         your-executable-name: calc # Replace with the name of your executable
 
     - name: Upload executable to S3
-      uses: actions/upload-artifact@v3 # Using artifact for cross-job transfer
+      uses: actions/upload-artifact@v4 # Using artifact for cross-job transfer
       with:
         name: linux-executable-${{ matrix.arch }}
         path: ${{ steps.find-executable.outputs.executable }}
