@@ -59,16 +59,12 @@ jobs:
         name: linux-executable-aarch64
         path: aarch64-build/
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ca-central-1
-
     - name: Upload to S3
       run: |
         aws s3 cp x86_64-build/* s3://your-s3-bucket/Linux/x86_64/ --acl public-read
         aws s3 cp aarch64-build/* s3://your-s3-bucket/Linux/aarch64/ --acl public-read
       env:
         AWS_S3_BUCKET: rcbilson-dist # Replace with your S3 bucket name
+        AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ca-central-1
