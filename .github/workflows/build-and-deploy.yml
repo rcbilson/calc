@@ -1,0 +1,80 @@
+name: Build and Deploy to S3
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build for Linux (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+        ghc: ['9.4'] # You can adjust GHC versions as needed
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Haskell environment
+      uses: haskell/actions/setup@v2
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: latest
+
+    - name: Configure Cabal
+      run: cabal update
+
+    - name: Build project
+      run: cabal build -j$(nproc)
+
+    - name: Find executable
+      id: find-executable
+      run: |
+        executable=$(find dist-new-style/build/*/ghc-*/your-project-name-*/x/your-executable-name/build/your-executable-name/your-executable-name)
+        echo "executable=$executable" >> $GITHUB_OUTPUT
+      env:
+        your-project-name: calc-0.1.0.0 # Replace with your project's name as defined in the .cabal file
+        your-executable-name: calc # Replace with the name of your executable
+
+    - name: Upload executable to S3
+      uses: actions/upload-artifact@v3 # Using artifact for cross-job transfer
+      with:
+        name: linux-executable-${{ matrix.arch }}
+        path: ${{ steps.find-executable.outputs.executable }}
+
+  deploy:
+    name: Deploy to S3
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # For OIDC based authentication
+
+    steps:
+    - name: Download executable (x86_64)
+      uses: actions/download-artifact@v3
+      with:
+        name: linux-executable-x86_64
+        path: x86_64-build/
+
+    - name: Download executable (arm64)
+      uses: actions/download-artifact@v3
+      with:
+        name: linux-executable-aarch64
+        path: arm64-build/
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
+
+    - name: Upload to S3
+      run: |
+        aws s3 cp x86_64-build/* s3://your-s3-bucket/linux/x86_64/
+        aws s3 cp arm64-build/* s3://your-s3-bucket/linux/arm64/
+      env:
+        AWS_S3_BUCKET: rcbilson-dist # Replace with your S3 bucket name
