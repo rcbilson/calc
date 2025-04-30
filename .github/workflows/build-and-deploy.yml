@@ -30,17 +30,14 @@ jobs:
     - name: Build project
       run: cabal build -j$(nproc)
 
-    - name: Find executable
-      id: find-executable
-      run: |
-        executable=$(find dist-new-style/build/*/ghc-*/calc-*/x/calc/build/calc/calc)
-        echo "executable=$executable" >> $GITHUB_OUTPUT
+    - name: Install project
+      run: cabal install --installdir=./bin
 
     - name: Upload executable to S3
       uses: actions/upload-artifact@v4 # Using artifact for cross-job transfer
       with:
         name: linux-executable-${{ matrix.arch }}
-        path: ${{ steps.find-executable.outputs.executable }}
+        path: bin/calc
 
   deploy:
     name: Deploy to S3
