@@ -33,11 +33,8 @@ jobs:
     - name: Find executable
       id: find-executable
       run: |
-        executable=$(find dist-new-style/build/*/ghc-*/your-project-name-*/x/your-executable-name/build/your-executable-name/your-executable-name)
+        executable=$(find dist-new-style/build/*/ghc-*/calc-*/x/calc/build/calc/calc)
         echo "executable=$executable" >> $GITHUB_OUTPUT
-      env:
-        your-project-name: calc-0.1.0.0 # Replace with your project's name as defined in the .cabal file
-        your-executable-name: calc # Replace with the name of your executable
 
     - name: Upload executable to S3
       uses: actions/upload-artifact@v4 # Using artifact for cross-job transfer
