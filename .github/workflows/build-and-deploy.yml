@@ -54,7 +54,7 @@ jobs:
         path: x86_64-build/
 
     - name: Download executable (arm64)
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: linux-executable-aarch64
         path: aarch64-build/
@@ -68,7 +68,7 @@ jobs:
 
     - name: Upload to S3
       run: |
-        aws s3 cp x86_64-build/* s3://your-s3-bucket/Linux/x86_64/
-        aws s3 cp aarch64-build/* s3://your-s3-bucket/Linux/aarch64/
+        aws s3 cp x86_64-build/* s3://your-s3-bucket/Linux/x86_64/ --acl public-read
+        aws s3 cp aarch64-build/* s3://your-s3-bucket/Linux/aarch64/ --acl public-read
       env:
         AWS_S3_BUCKET: rcbilson-dist # Replace with your S3 bucket name
