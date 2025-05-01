@@ -57,6 +57,10 @@ swap :: Engine a b -> Engine a b
 swap (Engine (x:y:xs) ops) = Engine (y:x:xs) ops
 swap _ = error("swap underflow")
 
+drop1 :: Engine a b -> Engine a b
+drop1 (Engine (_:xs) ops) = Engine xs ops
+drop1 _ = error("drop1 underflow")
+
 numericOps :: Num a => [(String, Engine a b -> Engine a b)]
 numericOps =
         [ ("+", stackOp2(+))
@@ -65,6 +69,7 @@ numericOps =
         , ("neg", stackOp1 negate)
         , ("dup", dup)
         , ("swap", swap)
+        , ("drop", drop1)
         ]
 
 ---------------- Floating-point calculator --------------------------
