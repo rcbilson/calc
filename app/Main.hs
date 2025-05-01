@@ -88,8 +88,10 @@ instance CalcType Float where
     toInt x = floor x
 
 data Base = BaseDec | BaseHex | BaseBin deriving Show
+data Chunk = Chunk | NoChunk deriving Show
 data OpStateInteger = OpStateInteger
     { base :: Base
+    , chunk :: Chunk
     } deriving Show
 data OpStateFloat = OpStateFloat
     { prec :: Maybe Int
@@ -113,7 +115,7 @@ opStateFloatDefault :: OpStateFloat
 opStateFloatDefault = OpStateFloat{ prec = Nothing, width = Nothing }
 
 opStateIntegerDefault :: OpStateInteger
-opStateIntegerDefault = OpStateInteger { base = BaseDec }
+opStateIntegerDefault = OpStateInteger { base = BaseDec, chunk = Chunk }
 
 class OpState a where
     toOpStateInteger :: a -> OpStateInteger
@@ -189,11 +191,17 @@ dec (Engine stk ops) = Engine stk ops{base=BaseDec}
 hex :: Integral a => Engine a OpStateInteger -> Engine a OpStateInteger
 hex (Engine stk ops) = Engine stk ops{base=BaseHex}
 
+toggleChunk :: Engine a OpStateInteger -> Engine a OpStateInteger
+toggleChunk (Engine stk ops) = case chunk ops of
+    NoChunk -> Engine stk ops{chunk=Chunk}
+    Chunk   -> Engine stk ops{chunk=NoChunk}
+
 intOps :: (Integral a, Bits a) => [(String, Engine a OpStateInteger -> Engine a OpStateInteger)]
 intOps = numericOps ++
         [ ("bin", bin)
         , ("dec", dec)
         , ("hex", hex)
+        , ("chunk", toggleChunk)
         , ("^", stackOp2(^))
         , ("/", stackOp2 div)
         , ("%", stackOp2 mod)
@@ -233,21 +241,21 @@ remainders :: Integral a => a -> a -> [a]
 remainders _ 0 = []
 remainders divisor dividend = (dividend `mod` divisor):(remainders divisor $ dividend `div` divisor)
 
-chunk :: Int -> [Char] -> [Char]
-chunk n xs
-    | length xs > n = (take n xs) ++ " " ++ (chunk n $ drop n xs)
+chunkDigits :: Int -> [Char] -> [Char]
+chunkDigits n xs
+    | length xs > n = (take n xs) ++ " " ++ (chunkDigits n $ drop n xs)
     | otherwise     = xs
 
-formatNoWsize :: Integral a => a -> Int -> a -> [Char]
+formatNoWsize :: Integral a => a -> ([Char] -> [Char]) -> a -> [Char]
 formatNoWsize b c v
     | v == 0    = "0"
     | v < 0     = '-':(formatNoWsize b c (-v))
-    | otherwise = (reverse . chunk c . map intDigit) $ remainders b v
+    | otherwise = (reverse . c . map intDigit) $ remainders b v
 
-formatWsize :: Integral a => Int -> a -> Int -> a -> [Char]
+formatWsize :: Integral a => Int -> a -> ([Char] -> [Char]) -> a -> [Char]
 formatWsize w b c v
-  | n < w     = reverse $ chunk c $ f ++ (replicate (w-n) '0')
-  | otherwise = reverse $ chunk c $ f
+  | n < w     = reverse $ c $ f ++ (replicate (w-n) '0')
+  | otherwise = reverse $ c $ f
   where
     f = map intDigit $ remainders b v
     n = length f
@@ -267,7 +275,10 @@ displayInteger eng@(Engine _ ops) =
             BaseBin -> (2, 4)
             BaseDec -> (10, 3)
             BaseHex -> (16, 4)
-        format = formatNoWsize b c
+        chunkFn = case (chunk ops) of
+            Chunk -> chunkDigits c
+            NoChunk -> id
+        format = formatNoWsize b chunkFn
     in displayIntegral format eng
 
 displayFixed :: (Integral a, FiniteBits a) => Engine a OpStateInteger -> IO ()
@@ -276,7 +287,10 @@ displayFixed eng@(Engine (x:_) ops) =
             BaseBin -> (2, 4, (finiteBitSize x))
             BaseDec -> (10, 3, 1)
             BaseHex -> (16, 4, (finiteBitSize x) `div` 4)
-        format = formatWsize w b c
+        chunkFn = case (chunk ops) of
+            Chunk -> chunkDigits c
+            NoChunk -> id
+        format = formatWsize w b chunkFn
     in displayIntegral format eng
 displayFixed _ = error("displayFixed underflow")
 
