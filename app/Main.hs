@@ -28,40 +28,6 @@ class CalcType a where
     toFloat :: a -> Float
     toInt :: a -> Integer
 
-instance CalcType Integer where
-    toFloat x = fromIntegral x
-    toInt x = x
-
-instance CalcType Word8 where
-    toFloat x = fromIntegral x
-    toInt x = fromIntegral x
-
-instance CalcType Word16 where
-    toFloat x = fromIntegral x
-    toInt x = fromIntegral x
-
-instance CalcType Word32 where
-    toFloat x = fromIntegral x
-    toInt x = fromIntegral x
-
-instance CalcType Word64 where
-    toFloat x = fromIntegral x
-    toInt x = fromIntegral x
-
-instance CalcType Float where
-    toFloat x = x
-    toInt x = floor x
-
-data Base = BaseDec | BaseHex | BaseBin deriving Show
-data Chunk = Chunk | NoChunk deriving Show
-data OpStateInteger = OpStateInteger
-    { base :: Base
-    , chunk :: Chunk
-    } deriving Show
-data OpStateFloat = OpStateFloat
-    { prec :: Maybe Int
-    , width :: Maybe Int
-    } deriving Show
 data Engine a b = Engine
     { stack :: Stack a
     , opState :: b
@@ -76,23 +42,9 @@ data Calculator a b = Calculator
 instance (Show a, Show b) => Show (Calculator a b) where
     show calc = show (engine calc)
 
-opStateFloatDefault :: OpStateFloat
-opStateFloatDefault = OpStateFloat{ prec = Nothing, width = Nothing }
-
-opStateIntegerDefault :: OpStateInteger
-opStateIntegerDefault = OpStateInteger { base = BaseDec, chunk = Chunk }
-
 class OpState a where
     toOpStateInteger :: a -> OpStateInteger
     toOpStateFloat :: a -> OpStateFloat
-
-instance OpState OpStateInteger where
-    toOpStateInteger = id
-    toOpStateFloat _ = opStateFloatDefault
-
-instance OpState OpStateFloat where
-    toOpStateInteger _ = opStateIntegerDefault
-    toOpStateFloat = id
 
 push :: Engine a b -> a -> Engine a b
 push (Engine stk ops) q = Engine (q:stk) ops
@@ -114,6 +66,23 @@ numericOps =
         , ("dup", dup)
         , ("swap", swap)
         ]
+
+---------------- Floating-point calculator --------------------------
+instance CalcType Float where
+    toFloat x = x
+    toInt x = floor x
+
+data OpStateFloat = OpStateFloat
+    { prec :: Maybe Int
+    , width :: Maybe Int
+    } deriving Show
+
+opStateFloatDefault :: OpStateFloat
+opStateFloatDefault = OpStateFloat{ prec = Nothing, width = Nothing }
+
+instance OpState OpStateFloat where
+    toOpStateInteger _ = opStateIntegerDefault
+    toOpStateFloat = id
 
 setp :: Engine Float OpStateFloat -> Engine Float OpStateFloat
 setp (Engine (x:xs) ops) = Engine (ensureStack xs) ops{prec=Just $ floor x}
@@ -146,6 +115,61 @@ displayFloat (Engine (x:y:z:t:_) ops) = do
     printf ("y " ++ format ++ "\n") y
     printf ("x " ++ format ++ "\n") x
 displayFloat _ = error("displayFloat underflow")
+floatCalculator :: Stack Float -> OpStateFloat -> Calculator Float OpStateFloat
+floatCalculator initialStack initialState = Calculator
+    { engine = Engine
+        { stack = initialStack
+        , opState = initialState
+        }
+    , opsMap = Map.fromList floatOps
+    , readNum = reads :: String -> [(Float,String)] 
+    , display = displayFloat
+    }
+
+convertToFloat :: (CalcType a, OpState b) => Calculator a b -> Calculator Float OpStateFloat
+convertToFloat calc =
+    let
+        oldStack = stack $ engine $ calc
+        newStack = fmap toFloat oldStack
+        oldState = opState $ engine $ calc
+        newState = toOpStateFloat oldState
+    in
+        floatCalculator newStack newState
+
+---------------- Integer calculators --------------------------
+
+data Base = BaseDec | BaseHex | BaseBin deriving Show
+data Chunk = Chunk | NoChunk deriving Show
+data OpStateInteger = OpStateInteger
+    { base :: Base
+    , chunk :: Chunk
+    } deriving Show
+
+instance OpState OpStateInteger where
+    toOpStateInteger = id
+    toOpStateFloat _ = opStateFloatDefault
+
+opStateIntegerDefault :: OpStateInteger
+opStateIntegerDefault = OpStateInteger { base = BaseDec, chunk = Chunk }
+instance CalcType Integer where
+    toFloat x = fromIntegral x
+    toInt x = x
+
+instance CalcType Word8 where
+    toFloat x = fromIntegral x
+    toInt x = fromIntegral x
+
+instance CalcType Word16 where
+    toFloat x = fromIntegral x
+    toInt x = fromIntegral x
+
+instance CalcType Word32 where
+    toFloat x = fromIntegral x
+    toInt x = fromIntegral x
+
+instance CalcType Word64 where
+    toFloat x = fromIntegral x
+    toInt x = fromIntegral x
 
 bin :: Integral a => Engine a OpStateInteger -> Engine a OpStateInteger
 bin (Engine stk ops) = Engine stk ops{base=BaseBin}
@@ -259,17 +283,6 @@ displayFixed eng@(Engine (x:_) ops) =
     in displayIntegral format eng
 displayFixed _ = error("displayFixed underflow")
 
-floatCalculator :: Stack Float -> OpStateFloat -> Calculator Float OpStateFloat
-floatCalculator initialStack initialState = Calculator
-    { engine = Engine
-        { stack = initialStack
-        , opState = initialState
-        }
-    , opsMap = Map.fromList floatOps
-    , readNum = reads :: String -> [(Float,String)] 
-    , display = displayFloat
-    }
-
 intCalculator :: Stack Integer -> OpStateInteger -> Calculator Integer OpStateInteger
 intCalculator initialStack initialState = Calculator
     { engine = Engine
@@ -294,6 +307,18 @@ fixedCalculator initialStack initialState = Calculator
     , readNum = readFixed
     , display = displayFixed
     }
+
+convertToIntegral :: (CalcType a, Integral b, OpState c) => Calculator a c -> (Stack b -> OpStateInteger -> Calculator b OpStateInteger) -> Calculator b OpStateInteger
+convertToIntegral calc construct = 
+    let
+        oldStack = stack $ engine $ calc
+        newStack = fmap (fromIntegral . toInt) oldStack
+        oldState = opState $ engine $ calc
+        newState = toOpStateInteger oldState
+    in
+        construct newStack newState
+
+---------------- The Calculator Interface --------------------------
 
 data Token a = Op String | Num a deriving Show
 
@@ -352,26 +377,6 @@ showCalculator calc acc = do
     putStr "\ESC[1J\ESC[H"
     (display calc) (engine calc)
     putStr ("> " ++ acc)
-
-convertToFloat :: (CalcType a, OpState b) => Calculator a b -> Calculator Float OpStateFloat
-convertToFloat calc =
-    let
-        oldStack = stack $ engine $ calc
-        newStack = fmap toFloat oldStack
-        oldState = opState $ engine $ calc
-        newState = toOpStateFloat oldState
-    in
-        floatCalculator newStack newState
-
-convertToIntegral :: (CalcType a, Integral b, OpState c) => Calculator a c -> (Stack b -> OpStateInteger -> Calculator b OpStateInteger) -> Calculator b OpStateInteger
-convertToIntegral calc construct = 
-    let
-        oldStack = stack $ engine $ calc
-        newStack = fmap (fromIntegral . toInt) oldStack
-        oldState = opState $ engine $ calc
-        newState = toOpStateInteger oldState
-    in
-        construct newStack newState
 
 doCalculator :: (Show a, Show b, Read a, CalcType a, OpState b) => Calculator a b -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
