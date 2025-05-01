@@ -9,11 +9,11 @@ on:
 jobs:
   build:
     name: Build for Linux (${{ matrix.arch }})
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [x86_64, aarch64]
+        os: ['ubuntu-24.04', 'ubuntu-24.04-arm']
         ghc: ['9.4.8'] # You can adjust GHC versions as needed
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -31,12 +31,14 @@ jobs:
       run: cabal build -j$(nproc)
 
     - name: Install project
-      run: cabal install --installdir=./bin
+      run: |
+        cabal install --installdir=./bin
+        strip bin/calc
 
     - name: Upload executable to S3
       uses: actions/upload-artifact@v4 # Using artifact for cross-job transfer
       with:
-        name: linux-executable-${{ matrix.arch }}
+        name: linux-executable-${{ matrix.os }}
         path: bin/calc
 
   deploy:
@@ -50,13 +52,13 @@ jobs:
     - name: Download executable (x86_64)
       uses: actions/download-artifact@v4
       with:
-        name: linux-executable-x86_64
+        name: linux-executable-ubuntu-24.04
         path: x86_64-build/
 
     - name: Download executable (arm64)
       uses: actions/download-artifact@v4
       with:
-        name: linux-executable-aarch64
+        name: linux-executable-ubuntu-24.04-arm
         path: aarch64-build/
 
     - name: Configure AWS credentials
