@@ -1,6 +1,6 @@
 module IntegerCalculator ( newIntegerCalculator ) where
 
-import CalculatorClass
+import Calculator
 import Data.Bits
 import Data.Word
 import qualified Data.Map.Strict as Map
@@ -31,7 +31,7 @@ toggleChunk (Engine stk ops) = case chunk ops of
     NoChunk -> Engine stk ops{chunk=Chunk}
     Chunk   -> Engine stk ops{chunk=NoChunk}
 
---intOps :: (Integral a, Bits a) => [(String, Engine a OpStateInteger -> Engine a OpStateInteger)]
+intOps :: (Integral a, Bits a) => Map.Map String (Engine a OpStateInteger -> Engine a OpStateInteger)
 intOps = Map.fromList $ numericOps ++
         [ ("bin", bin)
         , ("dec", dec)
@@ -132,32 +132,37 @@ displayFixed _ = error("displayFixed underflow")
 integerCalculator :: Stack Integer -> OpStateInteger -> IntegerCalculator
 integerCalculator initialStack initialState = IntegerCalculator{ engine = (Engine initialStack initialState) }
 
-instance CalculatorClass IntegerCalculator where
-    calcDisplay c = displayInteger (engine c)
+intConsume :: (Integral a, Bits a) => (String -> [(a, String)]) -> Engine a OpStateInteger -> String -> (Engine a OpStateInteger, String)
+-- Special case: if it's 0x or 0X it could be the beginning of
+-- a valid hex number so let it ride.
+intConsume _ eng "0x" = (eng, "0x")
+intConsume _ eng "0X" = (eng, "0X")
+-- Allow _ to stand in for prefix negation
+intConsume _ eng "_"  = (eng, "-")
+intConsume reads eng str = 
+    case reads str of
+        -- Special case: if it's a valid number with nothing or a dot
+        -- following it could continue on to be a bigger number, so
+        -- continue accumulating characters.
+        (_, ""):_   -> (eng, str)
+        (_, "."):_  -> (eng, str)
+        (num, rest):_ ->
+            -- special case: if the character caused a token to be returned, it might
+            -- be the case that the remainder is also a valid token (consider the input
+            -- "123+", the + causes the number to be completed as a token but it is
+            -- itself a token.
+            let newEng = push eng num
+            in intConsume reads newEng rest
+        []            -> case Map.lookup str intOps of
+            Just f -> (f eng, "")
+            Nothing -> (eng, str)
 
-    -- Special case: if it's 0x or 0X it could be the beginning of
-    -- a valid hex number so let it ride.
-    calcConsume calc "0x" = (calc, "0x")
-    calcConsume calc "0X" = (calc, "0X")
-    -- Allow _ to stand in for prefix negation
-    calcConsume calc "_"  = (calc, "-")
-    calcConsume calc str = 
-        case reads str of
-            -- Special case: if it's a valid number with nothing or a dot
-            -- following it could continue on to be a bigger number, so
-            -- continue accumulating characters.
-            (_, ""):_   -> (calc, str)
-            (_, "."):_  -> (calc, str)
-            (num, rest):_ ->
-                -- special case: if the character caused a token to be returned, it might
-                -- be the case that the remainder is also a valid token (consider the input
-                -- "123+", the + causes the number to be completed as a token but it is
-                -- itself a token.
-                let newCalc = calc{engine=push (engine calc) num}
-                in calcConsume newCalc rest
-            []            -> case Map.lookup str intOps of
-                Just f -> (calc{engine=f (engine calc)}, "")
-                Nothing -> (calc, str)
+integerReads :: String -> [(Integer, String)]
+integerReads = reads
+
+instance Calculator IntegerCalculator where
+    calcDisplay c = displayInteger (engine c)
+    calcConsume calc str = let (eng, rest) = intConsume integerReads (engine calc) str in (calc{engine=eng}, rest)
 
 newIntegerCalculator :: IntegerCalculator
 newIntegerCalculator = integerCalculator [0,0,0,0] opStateIntegerDefault

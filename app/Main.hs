@@ -6,7 +6,7 @@ import Data.Word
 import Text.Printf
 import WithRawInput
 import IntegerCalculator
-import CalculatorClass
+import Calculator
 
 import System.IO (stdout, hSetBuffering, BufferMode(NoBuffering))
 {-
@@ -152,26 +152,26 @@ backspace acc =
         [] -> []
         _:xs -> reverse xs
 
-consumeChar :: CalculatorClass a => a -> [Char] -> Char -> (a, [Char])
+consumeChar :: Calculator a => a -> [Char] -> Char -> (a, [Char])
 consumeChar calc acc c =
     let
         newacc = reverse (c:(reverse acc))
     in calcConsume calc newacc
 
-parseChar :: CalculatorClass a => a -> [Char] -> Char -> (a, [Char])
+parseChar :: Calculator a => a -> [Char] -> Char -> (a, [Char])
 parseChar calc acc '\DEL' = (calc, backspace acc)
 parseChar calc acc '\BS' = (calc, backspace acc)
 parseChar calc acc '\n' = case consumeChar calc acc '\n' of (c, _) -> (c, "")
 parseChar calc acc ' ' = case consumeChar calc acc ' ' of (c, _) -> (c, "")
 parseChar calc acc c = consumeChar calc acc c
 
-showCalculator :: CalculatorClass a => a -> [Char] -> IO()
+showCalculator :: Calculator a => a -> [Char] -> IO()
 showCalculator calc acc = do
     putStr "\ESC[1J\ESC[H"
     calcDisplay calc
     putStr ("> " ++ acc)
 
-doCalculator :: CalculatorClass a => a -> [Char] -> [Char] -> IO ()
+doCalculator :: Calculator a => a -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = parseChar initialCalc acc x
@@ -187,7 +187,7 @@ doCalculator initialCalc acc (x:xs) =
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
-startCalculator :: CalculatorClass a => a -> [Char] -> IO ()
+startCalculator :: Calculator a => a -> [Char] -> IO ()
 startCalculator calc input = do
     showCalculator calc ""
     doCalculator calc "" input
