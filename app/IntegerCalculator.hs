@@ -5,8 +5,6 @@ import Data.Bits
 import Data.Word
 import qualified Data.Map.Strict as Map
 
-data IntegerCalculator = IntegerCalculator { engine :: (Engine Integer OpStateInteger) }
-
 data Base = BaseDec | BaseHex | BaseBin deriving Show
 data Chunk = Chunk | NoChunk deriving Show
 data OpStateInteger = OpStateInteger
@@ -87,14 +85,6 @@ formatNoWsize b c v
     | v < 0     = '-':(formatNoWsize b c (-v))
     | otherwise = (reverse . c . map intDigit) $ remainders b v
 
-formatWsize :: Integral a => Int -> a -> ([Char] -> [Char]) -> a -> [Char]
-formatWsize w b c v
-  | n < w     = reverse $ c $ f ++ (replicate (w-n) '0')
-  | otherwise = reverse $ c $ f
-  where
-    f = map intDigit $ remainders b v
-    n = length f
-
 displayIntegral :: Integral a => (a -> [Char]) -> Engine a OpStateInteger -> IO ()
 displayIntegral format (Engine (x:y:z:t:_) ops) = do
     putStrLn $ show ops
@@ -116,6 +106,53 @@ displayInteger eng@(Engine _ ops) =
         format = formatNoWsize b chunkFn
     in displayIntegral format eng
 
+data IntegerCalculator = IntegerCalculator (Engine Integer OpStateInteger)
+
+intConsume :: (Integral a, Bits a) => (String -> [(a, String)]) -> Engine a OpStateInteger -> String -> (Engine a OpStateInteger, String)
+-- Special case: if it's 0x or 0X it could be the beginning of
+-- a valid hex number so let it ride.
+intConsume _ eng "0x" = (eng, "0x")
+intConsume _ eng "0X" = (eng, "0X")
+-- Allow _ to stand in for prefix negation
+intConsume _ eng "_"  = (eng, "-")
+intConsume readNum eng str = 
+    case readNum str of
+        -- Special case: if it's a valid number with nothing or a dot
+        -- following it could continue on to be a bigger number, so
+        -- continue accumulating characters.
+        (_, ""):_   -> (eng, str)
+        (_, "."):_  -> (eng, str)
+        (num, rest):_ ->
+            -- special case: if the character caused a token to be returned, it might
+            -- be the case that the remainder is also a valid token (consider the input
+            -- "123+", the + causes the number to be completed as a token but it is
+            -- itself a token.
+            let newEng = push eng num
+            in intConsume readNum newEng rest
+        []            -> case Map.lookup str intOps of
+            Just f -> (f eng, "")
+            Nothing -> (eng, str)
+
+integerReads :: String -> [(Integer, String)]
+integerReads = reads
+
+instance Calculator IntegerCalculator where
+    calcDisplay (IntegerCalculator engine) = displayInteger engine
+    calcConsume (IntegerCalculator engine) str = let (eng, rest) = intConsume integerReads engine str in (IntegerCalculator(eng), rest)
+
+newIntegerCalculator :: IntegerCalculator
+newIntegerCalculator = IntegerCalculator (Engine [0,0,0,0] opStateIntegerDefault)
+
+---------------------- Fixed-width ---------------------------
+
+formatWsize :: Integral a => Int -> a -> ([Char] -> [Char]) -> a -> [Char]
+formatWsize w b c v
+  | n < w     = reverse $ c $ f ++ (replicate (w-n) '0')
+  | otherwise = reverse $ c $ f
+  where
+    f = map intDigit $ remainders b v
+    n = length f
+
 displayFixed :: (Integral a, FiniteBits a) => Engine a OpStateInteger -> IO ()
 displayFixed eng@(Engine (x:_) ops) =
     let (b, c, w) = case (base ops) of
@@ -129,40 +166,11 @@ displayFixed eng@(Engine (x:_) ops) =
     in displayIntegral format eng
 displayFixed _ = error("displayFixed underflow")
 
-integerCalculator :: Stack Integer -> OpStateInteger -> IntegerCalculator
-integerCalculator initialStack initialState = IntegerCalculator{ engine = (Engine initialStack initialState) }
+data Word8Calculator = Word8Calculator (Engine Word8 OpStateInteger)
 
-intConsume :: (Integral a, Bits a) => (String -> [(a, String)]) -> Engine a OpStateInteger -> String -> (Engine a OpStateInteger, String)
--- Special case: if it's 0x or 0X it could be the beginning of
--- a valid hex number so let it ride.
-intConsume _ eng "0x" = (eng, "0x")
-intConsume _ eng "0X" = (eng, "0X")
--- Allow _ to stand in for prefix negation
-intConsume _ eng "_"  = (eng, "-")
-intConsume reads eng str = 
-    case reads str of
-        -- Special case: if it's a valid number with nothing or a dot
-        -- following it could continue on to be a bigger number, so
-        -- continue accumulating characters.
-        (_, ""):_   -> (eng, str)
-        (_, "."):_  -> (eng, str)
-        (num, rest):_ ->
-            -- special case: if the character caused a token to be returned, it might
-            -- be the case that the remainder is also a valid token (consider the input
-            -- "123+", the + causes the number to be completed as a token but it is
-            -- itself a token.
-            let newEng = push eng num
-            in intConsume reads newEng rest
-        []            -> case Map.lookup str intOps of
-            Just f -> (f eng, "")
-            Nothing -> (eng, str)
+word8Reads :: String -> [(Word8, String)]
+word8Reads = reads
 
-integerReads :: String -> [(Integer, String)]
-integerReads = reads
-
-instance Calculator IntegerCalculator where
-    calcDisplay c = displayInteger (engine c)
-    calcConsume calc str = let (eng, rest) = intConsume integerReads (engine calc) str in (calc{engine=eng}, rest)
-
-newIntegerCalculator :: IntegerCalculator
-newIntegerCalculator = integerCalculator [0,0,0,0] opStateIntegerDefault
+instance Calculator Word8Calculator where
+    calcDisplay (Word8Calculator engine) = displayFixed engine
+    calcConsume (Word8Calculator engine) str = let (eng, rest) = intConsume word8Reads engine str in (Word8Calculator eng, rest)
