@@ -1,9 +1,9 @@
-module IntegerCalculator ( defaultCalculator, OpStateInteger, IntegerCalculator(IntegerCalculator), Word8Calculator(Word8Calculator), Word16Calculator(Word16Calculator), Word32Calculator(Word32Calculator), Word64Calculator(Word64Calculator) ) where
+module IntegerCalculator ( defaultCalculator, opStateIntegerDefault, IntegerCalculator(IntegerCalculator), Word8Calculator(Word8Calculator), Word16Calculator(Word16Calculator), Word32Calculator(Word32Calculator), Word64Calculator(Word64Calculator) ) where
 
 import Calculator
+import qualified Data.Map.Strict as Map
 import Data.Bits
 import Data.Word
-import qualified Data.Map.Strict as Map
 
 data Base = BaseDec | BaseHex | BaseBin deriving Show
 data Chunk = Chunk | NoChunk deriving Show
@@ -109,29 +109,7 @@ displayInteger eng@(Engine _ ops) =
 data IntegerCalculator = IntegerCalculator (Engine Integer OpStateInteger)
 
 intConsume :: (Integral a, Bits a) => (String -> [(a, String)]) -> Engine a OpStateInteger -> String -> (Engine a OpStateInteger, String)
--- Special case: if it's 0x or 0X it could be the beginning of
--- a valid hex number so let it ride.
-intConsume _ eng "0x" = (eng, "0x")
-intConsume _ eng "0X" = (eng, "0X")
--- Allow _ to stand in for prefix negation
-intConsume _ eng "_"  = (eng, "-")
-intConsume readNum eng str = 
-    case readNum str of
-        -- Special case: if it's a valid number with nothing or a dot
-        -- following it could continue on to be a bigger number, so
-        -- continue accumulating characters.
-        (_, ""):_   -> (eng, str)
-        (_, "."):_  -> (eng, str)
-        (num, rest):_ ->
-            -- special case: if the character caused a token to be returned, it might
-            -- be the case that the remainder is also a valid token (consider the input
-            -- "123+", the + causes the number to be completed as a token but it is
-            -- itself a token.
-            let newEng = push eng num
-            in intConsume readNum newEng rest
-        []            -> case Map.lookup str intOps of
-            Just f -> (f eng, "")
-            Nothing -> (eng, str)
+intConsume = genericConsume (flip Map.lookup intOps)
 
 instance Calculator IntegerCalculator where
     calcDisplay (IntegerCalculator engine) = displayInteger engine
