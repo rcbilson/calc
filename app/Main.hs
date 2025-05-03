@@ -5,6 +5,8 @@ import Data.Bits
 import Data.Word
 import Text.Printf
 import WithRawInput
+import IntCalculator
+import CalculatorClass
 
 import System.IO (stdout, hSetBuffering, BufferMode(NoBuffering))
 
@@ -325,93 +327,49 @@ convertToIntegral calc construct =
 
 ---------------- The Calculator Interface --------------------------
 
-data Token a = Op String | Num a deriving Show
-
-consumeToken :: Calculator a b -> Token a -> Calculator a b
-consumeToken calc token =
-    case token of
-        Op op -> case Map.lookup op (opsMap calc) of
-            Just f -> calc{engine=f (engine calc)}
-            Nothing -> error ("Unknown operator: " ++ op)
-        Num n -> calc{engine=push (engine calc) n}
-
-tryParse :: Calculator a b -> [Char] -> (Maybe (Token a), [Char])
-tryParse _ [] = (Nothing, [])
-tryParse calc str =
-    -- Special case: if it's 0x or 0X it could be the beginning of
-    -- a valid hex number so let it ride.
-    case str of
-      "0x" -> (Nothing, str)
-      "0X" -> (Nothing, str)
-      "_" -> (Nothing, "-")
-      _ -> case (readNum calc) str of
-        (num, rest):_ ->
-            -- Special case: if it's a valid number with a period following
-            -- it could continue on to be some real number, so continue
-            -- accumulating characters.
-            if rest == "." then (Nothing, str)
-            else (Just (Num num), rest)
-        [] ->
-            if Map.member str (opsMap calc) then (Just (Op str), [])
-            else (Nothing, str)
-
-parseChar :: Calculator a b -> [Char] -> Char -> (Maybe (Token a), [Char])
-parseChar calc acc ' ' = case tryParse calc acc of (t, _) -> (t, [])
-parseChar calc acc '\n' = case tryParse calc acc of (t, _) -> (t, [])
-parseChar _ [] '\DEL' = (Nothing, [])
-parseChar _ acc '\DEL' =
+backspace :: String -> String
+backspace [] = []
+backspace acc =
     case reverse acc of
-        [] -> (Nothing, [])
-        _:xs -> (Nothing, reverse xs)
-parseChar _ [] '\BS' = (Nothing, [])
-parseChar _ acc '\BS' =
-    case reverse acc of
-        [] -> (Nothing, [])
-        _:xs -> (Nothing, reverse xs)
-parseChar calc acc c =
+        [] -> []
+        _:xs -> reverse xs
+
+consumeChar :: CalculatorClass a => a -> [Char] -> Char -> (a, [Char])
+consumeChar calc acc c =
     let
         newacc = reverse (c:(reverse acc))
-    in case tryParse calc newacc of
-        -- special case: if we parsed the complete input as a number, don't return a token:
-        -- it may be the case that the next character extends the number
-        (Just (Num _), []) -> (Nothing, newacc)
-        (t, r) -> (t, r)
+    in calcConsume calc newacc
 
-showCalculator :: (Show a, Show b) => Calculator a b -> [Char] -> IO()
+parseChar :: CalculatorClass a => a -> [Char] -> Char -> (a, [Char])
+parseChar calc acc '\DEL' = (calc, backspace acc)
+parseChar calc acc '\BS' = (calc, backspace acc)
+parseChar calc acc '\n' = case consumeChar calc acc '\n' of (c, _) -> (c, "")
+parseChar calc acc ' ' = case consumeChar calc acc ' ' of (c, _) -> (c, "")
+parseChar calc acc c = consumeChar calc acc c
+
+showCalculator :: CalculatorClass a => a -> [Char] -> IO()
 showCalculator calc acc = do
     putStr "\ESC[1J\ESC[H"
-    (display calc) (engine calc)
+    calcDisplay calc
     putStr ("> " ++ acc)
 
-doCalculator :: (Show a, Show b, Read a, CalcType a, OpState b) => Calculator a b -> [Char] -> [Char] -> IO ()
+doCalculator :: CalculatorClass a => a -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
-    let (newCalc, newAcc) = case parseChar initialCalc acc x of
-            (Nothing, rest) -> (initialCalc, rest)
-            (Just t, rest) -> 
-                -- special case: if the character caused a token to be returned, it might
-                -- be the case that the remainder is also a valid token (consider the input
-                -- "123+", the + causes the number to be completed as a token but it is
-                -- itself a token.
-                let
-                    calc2 = consumeToken initialCalc t
-                in
-                    case tryParse calc2 rest of
-                        (Nothing, rest2) -> (calc2, rest2)
-                        (Just t2, rest2) -> (consumeToken calc2 t2, rest2)
+    let (newCalc, newAcc) = parseChar initialCalc acc x
     in case newAcc of 
         "\\x" -> return ()
-        "\\f" -> startCalculator (convertToFloat newCalc) xs
-        "\\i" -> startCalculator (convertToIntegral newCalc intCalculator) xs
-        "\\8" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word8 OpStateInteger) xs
-        "\\16" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word16 OpStateInteger) xs
-        "\\32" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word32 OpStateInteger) xs
-        "\\64" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word64 OpStateInteger) xs
+--        "\\f" -> startCalculator (convertToFloat newCalc) xs
+--        "\\i" -> startCalculator (convertToIntegral newCalc intCalculator) xs
+--        "\\8" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word8 OpStateInteger) xs
+--        "\\16" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word16 OpStateInteger) xs
+--        "\\32" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word32 OpStateInteger) xs
+--        "\\64" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word64 OpStateInteger) xs
         _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
-startCalculator :: (Show a, Show b, Read a, CalcType a, OpState b) => Calculator a b -> [Char] -> IO ()
+startCalculator :: CalculatorClass a => a -> [Char] -> IO ()
 startCalculator calc input = do
     showCalculator calc ""
     doCalculator calc "" input
@@ -420,5 +378,5 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     input <- getContents
-    let initialCalc = intCalculator [0,0,0,0] opStateIntegerDefault
+    let initialCalc = newIntCalculator
     withRawInput 0 0 $ startCalculator initialCalc input
