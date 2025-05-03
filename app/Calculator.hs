@@ -1,4 +1,5 @@
 module Calculator ( Calculator, calcDisplay, calcConsume, Stack, ensureStack, stackOp1, stackOp2, opStateOp, Engine( Engine ), push, numericOps ) where
+
 class Calculator a where
     calcDisplay :: a -> IO()
     calcConsume :: a -> String -> (a, String)

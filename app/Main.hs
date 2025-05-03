@@ -7,6 +7,7 @@ import Text.Printf
 import WithRawInput
 import IntegerCalculator
 import Calculator
+import ConvertibleCalculator
 
 import System.IO (stdout, hSetBuffering, BufferMode(NoBuffering))
 {-
@@ -171,15 +172,15 @@ showCalculator calc acc = do
     calcDisplay calc
     putStr ("> " ++ acc)
 
-doCalculator :: Calculator a => a -> [Char] -> [Char] -> IO ()
+doCalculator :: (Calculator a, ConvertibleCalculator a) => a -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = parseChar initialCalc acc x
     in case newAcc of 
         "\\x" -> return ()
 --        "\\f" -> startCalculator (convertToFloat newCalc) xs
---        "\\i" -> startCalculator (convertToIntegral newCalc intCalculator) xs
---        "\\8" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word8 OpStateInteger) xs
+        "\\i" -> startCalculator (calcToInteger newCalc) xs
+        "\\8" -> startCalculator (calcToWord8 newCalc) xs
 --        "\\16" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word16 OpStateInteger) xs
 --        "\\32" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word32 OpStateInteger) xs
 --        "\\64" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word64 OpStateInteger) xs
@@ -187,7 +188,7 @@ doCalculator initialCalc acc (x:xs) =
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
-startCalculator :: Calculator a => a -> [Char] -> IO ()
+startCalculator :: (Calculator a, ConvertibleCalculator a) => a -> [Char] -> IO ()
 startCalculator calc input = do
     showCalculator calc ""
     doCalculator calc "" input

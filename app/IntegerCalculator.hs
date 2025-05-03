@@ -1,4 +1,4 @@
-module IntegerCalculator ( newIntegerCalculator ) where
+module IntegerCalculator ( newIntegerCalculator, newWord8Calculator, OpStateInteger, IntegerCalculator( IntegerCalculator ), Word8Calculator( Word8Calculator ) ) where
 
 import Calculator
 import Data.Bits
@@ -174,3 +174,6 @@ word8Reads = reads
 instance Calculator Word8Calculator where
     calcDisplay (Word8Calculator engine) = displayFixed engine
     calcConsume (Word8Calculator engine) str = let (eng, rest) = intConsume word8Reads engine str in (Word8Calculator eng, rest)
+
+newWord8Calculator :: Word8Calculator
+newWord8Calculator = Word8Calculator (Engine [0,0,0,0] opStateIntegerDefault)
