@@ -1,4 +1,4 @@
-module IntegerCalculator ( newIntegerCalculator, newWord8Calculator, OpStateInteger, IntegerCalculator( IntegerCalculator ), Word8Calculator( Word8Calculator ) ) where
+module IntegerCalculator ( defaultCalculator, OpStateInteger, IntegerCalculator(IntegerCalculator), Word8Calculator(Word8Calculator), Word16Calculator(Word16Calculator), Word32Calculator(Word32Calculator), Word64Calculator(Word64Calculator) ) where
 
 import Calculator
 import Data.Bits
@@ -133,15 +133,12 @@ intConsume readNum eng str =
             Just f -> (f eng, "")
             Nothing -> (eng, str)
 
-integerReads :: String -> [(Integer, String)]
-integerReads = reads
-
 instance Calculator IntegerCalculator where
     calcDisplay (IntegerCalculator engine) = displayInteger engine
-    calcConsume (IntegerCalculator engine) str = let (eng, rest) = intConsume integerReads engine str in (IntegerCalculator(eng), rest)
+    calcConsume (IntegerCalculator engine) str = let (eng, rest) = intConsume reads engine str in (IntegerCalculator(eng), rest)
 
-newIntegerCalculator :: IntegerCalculator
-newIntegerCalculator = IntegerCalculator (Engine [0,0,0,0] opStateIntegerDefault)
+defaultCalculator :: IntegerCalculator
+defaultCalculator = IntegerCalculator (Engine [0,0,0,0] opStateIntegerDefault)
 
 ---------------------- Fixed-width ---------------------------
 
@@ -168,12 +165,24 @@ displayFixed _ = error("displayFixed underflow")
 
 data Word8Calculator = Word8Calculator (Engine Word8 OpStateInteger)
 
-word8Reads :: String -> [(Word8, String)]
-word8Reads = reads
-
 instance Calculator Word8Calculator where
     calcDisplay (Word8Calculator engine) = displayFixed engine
-    calcConsume (Word8Calculator engine) str = let (eng, rest) = intConsume word8Reads engine str in (Word8Calculator eng, rest)
+    calcConsume (Word8Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word8Calculator eng, rest)
 
-newWord8Calculator :: Word8Calculator
-newWord8Calculator = Word8Calculator (Engine [0,0,0,0] opStateIntegerDefault)
+data Word16Calculator = Word16Calculator (Engine Word16 OpStateInteger)
+
+instance Calculator Word16Calculator where
+    calcDisplay (Word16Calculator engine) = displayFixed engine
+    calcConsume (Word16Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word16Calculator eng, rest)
+
+data Word32Calculator = Word32Calculator (Engine Word32 OpStateInteger)
+
+instance Calculator Word32Calculator where
+    calcDisplay (Word32Calculator engine) = displayFixed engine
+    calcConsume (Word32Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word32Calculator eng, rest)
+
+data Word64Calculator = Word64Calculator (Engine Word64 OpStateInteger)
+
+instance Calculator Word64Calculator where
+    calcDisplay (Word64Calculator engine) = displayFixed engine
+    calcConsume (Word64Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word64Calculator eng, rest)

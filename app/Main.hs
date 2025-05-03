@@ -181,9 +181,9 @@ doCalculator initialCalc acc (x:xs) =
 --        "\\f" -> startCalculator (convertToFloat newCalc) xs
         "\\i" -> startCalculator (calcToInteger newCalc) xs
         "\\8" -> startCalculator (calcToWord8 newCalc) xs
---        "\\16" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word16 OpStateInteger) xs
---        "\\32" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word32 OpStateInteger) xs
---        "\\64" -> startCalculator (convertToIntegral newCalc fixedCalculator :: Calculator Word64 OpStateInteger) xs
+        "\\16" -> startCalculator (calcToWord16 newCalc) xs
+        "\\32" -> startCalculator (calcToWord32 newCalc) xs
+        "\\64" -> startCalculator (calcToWord64 newCalc) xs
         _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
@@ -197,5 +197,5 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     input <- getContents
-    let initialCalc = newIntegerCalculator
+    let initialCalc = defaultCalculator
     withRawInput 0 0 $ startCalculator initialCalc input
