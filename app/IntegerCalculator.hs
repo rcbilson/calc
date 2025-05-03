@@ -1,59 +1,11 @@
-module IntCalculator ( newIntCalculator ) where
+module IntegerCalculator ( newIntegerCalculator ) where
 
 import CalculatorClass
 import Data.Bits
 import Data.Word
 import qualified Data.Map.Strict as Map
 
-type Stack a = [a]
-
-ensureStack :: Num a => Stack a -> Stack a
-ensureStack stk
-    | length(stk) < 4 = ensureStack (stk ++ [0])
-    | otherwise       = stk
-
-stackOp1 :: (a -> a) -> Engine a b -> Engine a b
-stackOp1 f (Engine (x:xs) ops) = Engine ((f x):xs) ops
-stackOp1 _ _ = error("stackOp1 underflow")
-stackOp2 :: Num a => (a -> a -> a) -> Engine a b -> Engine a b
-stackOp2 f (Engine (x:y:xs) ops) = Engine (ensureStack $ (f y x):xs) ops
-stackOp2 _ _ = error("stackOp2 underflow")
-opStateOp :: (b -> b) -> Engine a b -> Engine a b
-opStateOp f (Engine stk ops) = Engine stk (f ops)
-
-data Engine a b = Engine
-    { stack :: Stack a
-    , opState :: b
-    } deriving Show
-data IntCalculator = IntCalculator { engine :: (Engine Integer OpStateInteger) }
-
-push :: Engine a b -> a -> Engine a b
-push (Engine stk ops) q = Engine (q:stk) ops
-
-dup :: Engine a b -> Engine a b
-dup (Engine (x:xs) ops) = Engine (x:x:xs) ops
-dup _ = error("dup underflow")
-
-swap :: Engine a b -> Engine a b
-swap (Engine (x:y:xs) ops) = Engine (y:x:xs) ops
-swap _ = error("swap underflow")
-
-drop1 :: Engine a b -> Engine a b
-drop1 (Engine (_:xs) ops) = Engine xs ops
-drop1 _ = error("drop1 underflow")
-
-numericOps :: Num a => [(String, Engine a b -> Engine a b)]
-numericOps =
-        [ ("+", stackOp2(+))
-        , ("-", stackOp2(-))
-        , ("*", stackOp2(*))
-        , ("neg", stackOp1 negate)
-        , ("dup", dup)
-        , ("swap", swap)
-        , ("drop", drop1)
-        , (" ", id)
-        , ("\n", id)
-        ]
+data IntegerCalculator = IntegerCalculator { engine :: (Engine Integer OpStateInteger) }
 
 data Base = BaseDec | BaseHex | BaseBin deriving Show
 data Chunk = Chunk | NoChunk deriving Show
@@ -177,10 +129,10 @@ displayFixed eng@(Engine (x:_) ops) =
     in displayIntegral format eng
 displayFixed _ = error("displayFixed underflow")
 
-intCalculator :: Stack Integer -> OpStateInteger -> IntCalculator
-intCalculator initialStack initialState = IntCalculator{ engine = (Engine initialStack initialState) }
+integerCalculator :: Stack Integer -> OpStateInteger -> IntegerCalculator
+integerCalculator initialStack initialState = IntegerCalculator{ engine = (Engine initialStack initialState) }
 
-instance CalculatorClass IntCalculator where
+instance CalculatorClass IntegerCalculator where
     calcDisplay c = displayInteger (engine c)
 
     -- Special case: if it's 0x or 0X it could be the beginning of
@@ -207,5 +159,5 @@ instance CalculatorClass IntCalculator where
                 Just f -> (calc{engine=f (engine calc)}, "")
                 Nothing -> (calc, str)
 
-newIntCalculator :: IntCalculator
-newIntCalculator = intCalculator [0,0,0,0] opStateIntegerDefault
+newIntegerCalculator :: IntegerCalculator
+newIntegerCalculator = integerCalculator [0,0,0,0] opStateIntegerDefault
