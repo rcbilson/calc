@@ -1,9 +1,24 @@
-module ConvertibleCalculator ( ConvertibleCalculator, calcToInteger, calcToWord8, calcToWord16, calcToWord32, calcToWord64, calcToFloat ) where
+module ConvertibleCalculator (
+    ConvertibleCalculator,
+    calcToInteger,
+    calcToWord8,
+    calcToWord16,
+    calcToWord32,
+    calcToWord64,
+    calcToFloat ) where
 
 import Calculator
 import IntegerCalculator
 import FloatCalculator
 
+-- A ConvertibleCalculator is a Calculator that can be converted to one of the
+-- other calculator types.
+--
+-- This is pretty gnarly because it requires a matrix of source and destination
+-- state types. It feels like it ought to be possible to abstract the
+-- implementation more; I've tried a few things and didn't come up with
+-- anything that was notably less gnarly. This version has the virtue of being
+-- obvious.
 class ConvertibleCalculator a where
     calcToInteger :: a -> IntegerCalculator
     calcToWord8   :: a -> Word8Calculator

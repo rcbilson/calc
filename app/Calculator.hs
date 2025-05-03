@@ -1,47 +1,93 @@
-module Calculator ( Calculator, calcDisplay, calcConsume, Stack, ensureStack, stackOp1, stackOp2, opStateOp, Engine( Engine ), push, numericOps, genericConsume ) where
+module Calculator (
+    Calculator,
+    calcDisplay,
+    calcConsume,
+    Stack,
+    ensureStack,
+    stackOp1,
+    stackOp2,
+    opStateOp,
+    Engine( Engine ),
+    numericOps,
+    genericConsume ) where
 
+-- A Calculator is something that consume string input and display itself
 class Calculator a where
+    -- calcDisplay outputs a textual representation of the calculator state.
+    -- The expectation is that this is 5 lines, one for operational state and
+    -- four for the top four stack entries.
     calcDisplay :: a -> IO()
+
+    -- calcConsume takes a Calculator and a String; it is expected to take
+    -- any prefix of the string that indicates a valid datum or operation
+    -- and update the state of the calculator accordingly. It returns the
+    -- new state of the calculator and the remainder of the string.
     calcConsume :: a -> String -> (a, String)
 
+-- The rest of this file are utility classes that are common to the different
+-- Calculator implementations.
+
+-- A stack is represented as a list, with the head of the list as top of stack
 type Stack a = [a]
 
+-- ensureStack takes a stack and produces an equivalent stack that is at least
+-- four elements deep, filling in with zeroes at the base of the stack as
+-- necessary.
 ensureStack :: Num a => Stack a -> Stack a
 ensureStack stk
     | length(stk) < 4 = ensureStack (stk ++ [0])
     | otherwise       = stk
 
-type EngineFn a b = Engine a b -> Engine a b
-
-stackOp1 :: (a -> a) -> EngineFn a b
-stackOp1 f (Engine (x:xs) ops) = Engine ((f x):xs) ops
-stackOp1 _ _ = error("stackOp1 underflow")
-stackOp2 :: Num a => (a -> a -> a) -> EngineFn a b
-stackOp2 f (Engine (x:y:xs) ops) = Engine (ensureStack $ (f y x):xs) ops
-stackOp2 _ _ = error("stackOp2 underflow")
-opStateOp :: (b -> b) -> EngineFn a b
-opStateOp f (Engine stk ops) = Engine stk (f ops)
-
+-- An Engine is the guts of a Calculator, consisting of a stack and some amount
+-- of "operational state" that determines the behaviour of the calculator.
 data Engine a b = Engine
     { stack :: Stack a
     , opState :: b
     } deriving Show
 
+-- An EngineFn is any function that operates on an Engine, returning an Engine
+-- of the same type.
+type EngineFn a b = Engine a b -> Engine a b
+
+-- stackOp1 turns a unary function into an EngineFn that applies the function
+-- to the top element of the stack.
+stackOp1 :: (a -> a) -> EngineFn a b
+stackOp1 f (Engine (x:xs) ops) = Engine ((f x):xs) ops
+stackOp1 _ _ = error("stackOp1 underflow")
+
+-- stackOp2 turns a binary function into an EngineFn that applies the function
+-- to the top two elements of the stack.
+stackOp2 :: Num a => (a -> a -> a) -> EngineFn a b
+stackOp2 f (Engine (x:y:xs) ops) = Engine (ensureStack $ (f y x):xs) ops
+stackOp2 _ _ = error("stackOp2 underflow")
+
+-- opStateOp turns a unary function into an EngineFn that applies the function
+-- to the operational state.
+opStateOp :: (b -> b) -> EngineFn a b
+opStateOp f (Engine stk ops) = Engine stk (f ops)
+
+-- push inserts the datum 'q' at the top of the stack.
 push :: Engine a b -> a -> Engine a b
 push (Engine stk ops) q = Engine (q:stk) ops
 
+-- dup duplicates the top item of the stack.
 dup :: Engine a b -> Engine a b
 dup (Engine (x:xs) ops) = Engine (x:x:xs) ops
 dup _ = error("dup underflow")
 
+-- swap reverses the order of the top two stack items.
 swap :: Engine a b -> Engine a b
 swap (Engine (x:y:xs) ops) = Engine (y:x:xs) ops
 swap _ = error("swap underflow")
 
+-- drop1 discards the top item of the stack.
 drop1 :: Engine a b -> Engine a b
 drop1 (Engine (_:xs) ops) = Engine xs ops
 drop1 _ = error("drop1 underflow")
 
+-- numericOps is a list of pairs of name and EngineFn. These
+-- functions can apply to any numeric type so they are available
+-- in all of the calculator implementations.
 numericOps :: Num a => [(String, Engine a b -> Engine a b)]
 numericOps =
         [ ("+", stackOp2(+))
@@ -51,10 +97,20 @@ numericOps =
         , ("dup", dup)
         , ("swap", swap)
         , ("drop", drop1)
-        , (" ", id)
-        , ("\n", id)
         ]
 
+-- genericConsume is a function that can be used to implement calcConsume.
+-- It is parameterrized with two functions:
+--   - lookupOp takes a string and may return a corresponding EngineFn
+--   - readNum reads a numeric value as a prefix of a string
+--     (It's just "reads" but you can't really use "reads" directly in a
+--     polymorphic context.)
+-- The result of applying these two functions is a function that takes
+-- an Engine and a String, then decides if there is a prefix of that string
+-- that represents a valid number or a valid operation. If there is a
+-- valid number the number is pushed to the stack. If there is a valid
+-- operation the operation is applied to the Engine. It returns the updated
+-- engine and any remaining part of the string.
 genericConsume :: (String -> Maybe (EngineFn a b)) -> (String -> [(a, String)]) -> Engine a b -> String -> (Engine a b, String)
 -- Special case: if it's 0x or 0X it could be the beginning of
 -- a valid hex number so let it ride.
