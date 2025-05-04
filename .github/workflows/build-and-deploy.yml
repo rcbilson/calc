@@ -27,6 +27,9 @@ jobs:
     - name: Configure Cabal
       run: cabal update
 
+    - name: Test project
+      run: cabal test -j$(nproc)
+
     - name: Build project
       run: cabal build -j$(nproc)
 

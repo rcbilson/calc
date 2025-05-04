@@ -1,4 +1,4 @@
-module Runner (startCalculator, defaultCalculator) where
+module Runner (startCalculator, defaultCalculator, testCalculator) where
 
 import IntegerCalculator
 import Calculator
@@ -44,6 +44,15 @@ showCalculator calc acc = do
     putStr "\ESC[1J\ESC[H"
     calcDisplay calc
     putStr ("> " ++ acc)
+
+-- testCalculator is a calculator main loop for test purposes. It doesn't have any
+-- IO, and it doesn't allow any of the special commands that switch modes so that the
+-- return value can be well-typed.
+testCalculator :: Calculator a => a -> [Char] -> [Char] -> a
+testCalculator initialCalc _ [] = initialCalc
+testCalculator initialCalc acc (x:xs) =
+    let (newCalc, newAcc) = processChar initialCalc acc x
+    in testCalculator newCalc newAcc xs
 
 -- doCalculator is the calculator main loop, consuming input characters one at a
 -- time and displaying the updated state of the calculator at each step.

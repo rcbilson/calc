@@ -1,4 +1,10 @@
-module IntegerCalculator ( defaultCalculator, opStateIntegerDefault, IntegerCalculator(IntegerCalculator), Word8Calculator(Word8Calculator), Word16Calculator(Word16Calculator), Word32Calculator(Word32Calculator), Word64Calculator(Word64Calculator) ) where
+module IntegerCalculator ( defaultCalculator,
+    opStateIntegerDefault,
+    IntegerCalculator(IntegerCalculator),
+    Word8Calculator(Word8Calculator),
+    Word16Calculator(Word16Calculator),
+    Word32Calculator(Word32Calculator),
+    Word64Calculator(Word64Calculator) ) where
 
 import Calculator
 import qualified Data.Map.Strict as Map
