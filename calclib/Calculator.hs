@@ -100,7 +100,7 @@ numericOps =
         ]
 
 -- genericConsume is a function that can be used to implement calcConsume.
--- It is parameterrized with two functions:
+-- It is parameterized with two functions:
 --   - lookupOp takes a string and may return a corresponding EngineFn
 --   - readNum reads a numeric value as a prefix of a string
 --     (It's just "reads" but you can't really use "reads" directly in a

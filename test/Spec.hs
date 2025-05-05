@@ -46,7 +46,7 @@ doFloatTest input =
 main :: IO ()
 main = hspec spec
 
-integerTests doTest = do
+numericTests doTest = do
     it "adds two numbers" $ do
       doTest "1 2+" `shouldBe` 3
 
@@ -62,12 +62,6 @@ integerTests doTest = do
     it "multiplies two numbers" $ do
       doTest "3 2*" `shouldBe` 6
 
-    it "divides two numbers" $ do
-      doTest "17 7/" `shouldBe` 2
-
-    it "computes a remainder" $ do
-      doTest "17 7%" `shouldBe` 3
-
     it "negates a number" $ do
       doTest "17neg" `shouldBe` -17
 
@@ -79,6 +73,15 @@ integerTests doTest = do
 
     it "duplicates a number" $ do
       doTest "2 dup drop" `shouldBe` 2
+
+integerTests doTest = do
+    (numericTests doTest)
+
+    it "divides two numbers" $ do
+      doTest "17 7/" `shouldBe` 2
+
+    it "computes a remainder" $ do
+      doTest "17 7%" `shouldBe` 3
 
     it "computes integer powers" $ do
       doTest "2 3^" `shouldBe` 8
@@ -94,6 +97,24 @@ integerTests doTest = do
 
     it "computes bitwise not" $ do
       doTest "0x55 0xf!&" `shouldBe` 0x50
+
+    it "shifts multiple places left" $ do
+      doTest "0x07 4 shl" `shouldBe` 0x70
+
+    it "shifts multiple places right" $ do
+      doTest "0x70 4 shr" `shouldBe` 0x07
+
+    it "shifts one place left" $ do
+      doTest "0x6<" `shouldBe` 0x0c
+
+    it "shifts one place right" $ do
+      doTest "0xc>" `shouldBe` 0x06
+
+    it "sets a bit" $ do
+      doTest "3sb" `shouldBe` 0x8
+
+    it "clears a bit" $ do
+      doTest "12 2cb" `shouldBe` 0x8
 
 
 spec :: Spec
@@ -137,3 +158,14 @@ spec = do
         it "uses 2's complement negation" $ do
             doWord64Test "0xffffffffffffffff neg" `shouldBe` 1
 
+    describe "FloatCalculator" $ do
+        (numericTests doFloatTest)
+
+        it "divides two numbers" $ do
+            doFloatTest "17 2/" `shouldBe` 8.5
+
+        it "raises to an integer power" $ do
+            doFloatTest "14 2^" `shouldBe` 196
+
+        it "raises to a fractional power" $ do
+            doFloatTest "196 0.5^" `shouldBe` 14
