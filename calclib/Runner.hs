@@ -58,7 +58,7 @@ testCalculator initialCalc acc (x:xs) =
 -- time and displaying the updated state of the calculator at each step.
 -- It also handles certain special operations that can't be expressed as EngineFn.
 -- These include exiting the program, and switching to a different arithmetic mode.
-doCalculator :: (Calculator a, ConvertibleCalculator a) => a -> [Char] -> [Char] -> IO ()
+doCalculator :: ConvertibleCalculator a => a -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = processChar initialCalc acc x
@@ -76,7 +76,7 @@ doCalculator initialCalc acc (x:xs) =
 
 -- startCalculator displays the initial state of the calculator and then enters
 -- the main loop.
-startCalculator :: (Calculator a, ConvertibleCalculator a) => a -> [Char] -> IO ()
+startCalculator :: ConvertibleCalculator a => a -> [Char] -> IO ()
 startCalculator calc input = do
     showCalculator calc ""
     doCalculator calc "" input

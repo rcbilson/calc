@@ -19,7 +19,7 @@ import FloatCalculator
 -- implementation more; I've tried a few things and didn't come up with
 -- anything that was notably less gnarly. This version has the virtue of being
 -- obvious.
-class ConvertibleCalculator a where
+class Calculator a => ConvertibleCalculator a where
     calcToInteger :: a -> IntegerCalculator
     calcToWord8   :: a -> Word8Calculator
     calcToWord16  :: a -> Word16Calculator
