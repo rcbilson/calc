@@ -7,6 +7,7 @@ module Calculator (
     stackOp1,
     stackOp2,
     opStateOp,
+    push,
     Engine( Engine ),
     numericOps,
     genericConsume ) where
@@ -67,8 +68,8 @@ opStateOp :: (b -> b) -> EngineFn a b
 opStateOp f (Engine stk ops) = Engine stk (f ops)
 
 -- push inserts the datum 'q' at the top of the stack.
-push :: Engine a b -> a -> Engine a b
-push (Engine stk ops) q = Engine (q:stk) ops
+push :: a -> Engine a b -> Engine a b
+push q (Engine stk ops) = Engine (q:stk) ops
 
 -- dup duplicates the top item of the stack.
 dup :: Engine a b -> Engine a b
@@ -130,7 +131,7 @@ genericConsume lookupOp readNum eng str =
             -- be the case that the remainder is also a valid token (consider the input
             -- "123+", the + causes the number to be completed as a token but it is
             -- itself a token.
-            let newEng = push eng num
+            let newEng = push num eng
             in genericConsume lookupOp readNum newEng rest
         [] -> case lookupOp str of
             Just f -> (f eng, "")

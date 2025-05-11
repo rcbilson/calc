@@ -169,3 +169,21 @@ spec = do
 
         it "raises to a fractional power" $ do
             doFloatTest "196 0.5^" `shouldBe` 14
+
+        it "computes natural logarithm and exponential" $ do
+            doFloatTest "1 ln exp exp ln" `shouldBe` 1
+
+        it "computes logarithm to base 2" $ do
+            doFloatTest "1024 lg" `shouldBe` 10
+
+        it "computes logarithm to arbitrary base" $ do
+            doFloatTest "1024 2 log" `shouldBe` 10
+
+        it "computes sin and arcsin" $ do
+            doFloatTest "1 sin asin" `shouldBe` 1
+
+        it "computes cos and arccos" $ do
+            doFloatTest "1 cos acos" `shouldBe` 1
+
+        it "computes tan and arctan" $ do
+            doFloatTest "1 tan arctan" `shouldBe` 1
