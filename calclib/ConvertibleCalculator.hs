@@ -5,11 +5,11 @@ module ConvertibleCalculator (
     calcToWord16,
     calcToWord32,
     calcToWord64,
-    calcToFloat ) where
+    calcToDouble ) where
 
 import Calculator
 import IntegerCalculator
-import FloatCalculator
+import DoubleCalculator
 
 -- A ConvertibleCalculator is a Calculator that can be converted to one of the
 -- other calculator types.
@@ -25,7 +25,7 @@ class Calculator a => ConvertibleCalculator a where
     calcToWord16  :: a -> Word16Calculator
     calcToWord32  :: a -> Word32Calculator
     calcToWord64  :: a -> Word64Calculator
-    calcToFloat   :: a -> FloatCalculator
+    calcToDouble   :: a -> DoubleCalculator
 
 instance ConvertibleCalculator IntegerCalculator where
     calcToInteger = id
@@ -33,7 +33,7 @@ instance ConvertibleCalculator IntegerCalculator where
     calcToWord16 (IntegerCalculator (Engine stk ops)) = Word16Calculator (Engine (map fromIntegral stk) ops)
     calcToWord32 (IntegerCalculator (Engine stk ops)) = Word32Calculator (Engine (map fromIntegral stk) ops)
     calcToWord64 (IntegerCalculator (Engine stk ops)) = Word64Calculator (Engine (map fromIntegral stk) ops)
-    calcToFloat  (IntegerCalculator (Engine stk _))   = FloatCalculator (Engine (map fromIntegral stk) opStateFloatDefault)
+    calcToDouble  (IntegerCalculator (Engine stk _))   = DoubleCalculator (Engine (map fromIntegral stk) opStateDoubleDefault)
 
 instance ConvertibleCalculator Word8Calculator where
     calcToInteger (Word8Calculator (Engine stk ops)) = IntegerCalculator (Engine (map fromIntegral stk) ops)
@@ -41,7 +41,7 @@ instance ConvertibleCalculator Word8Calculator where
     calcToWord16  (Word8Calculator (Engine stk ops)) = Word16Calculator (Engine (map fromIntegral stk) ops)
     calcToWord32  (Word8Calculator (Engine stk ops)) = Word32Calculator (Engine (map fromIntegral stk) ops)
     calcToWord64  (Word8Calculator (Engine stk ops)) = Word64Calculator (Engine (map fromIntegral stk) ops)
-    calcToFloat   (Word8Calculator (Engine stk _))   = FloatCalculator (Engine (map fromIntegral stk) opStateFloatDefault)
+    calcToDouble   (Word8Calculator (Engine stk _))   = DoubleCalculator (Engine (map fromIntegral stk) opStateDoubleDefault)
 
 instance ConvertibleCalculator Word16Calculator where
     calcToInteger (Word16Calculator (Engine stk ops)) = IntegerCalculator (Engine (map fromIntegral stk) ops)
@@ -49,7 +49,7 @@ instance ConvertibleCalculator Word16Calculator where
     calcToWord16  = id
     calcToWord32  (Word16Calculator (Engine stk ops)) = Word32Calculator (Engine (map fromIntegral stk) ops)
     calcToWord64  (Word16Calculator (Engine stk ops)) = Word64Calculator (Engine (map fromIntegral stk) ops)
-    calcToFloat   (Word16Calculator (Engine stk _))   = FloatCalculator (Engine (map fromIntegral stk) opStateFloatDefault)
+    calcToDouble   (Word16Calculator (Engine stk _))   = DoubleCalculator (Engine (map fromIntegral stk) opStateDoubleDefault)
 
 instance ConvertibleCalculator Word32Calculator where
     calcToInteger (Word32Calculator (Engine stk ops)) = IntegerCalculator (Engine (map fromIntegral stk) ops)
@@ -57,7 +57,7 @@ instance ConvertibleCalculator Word32Calculator where
     calcToWord16  (Word32Calculator (Engine stk ops)) = Word16Calculator (Engine (map fromIntegral stk) ops)
     calcToWord32  = id
     calcToWord64  (Word32Calculator (Engine stk ops)) = Word64Calculator (Engine (map fromIntegral stk) ops)
-    calcToFloat   (Word32Calculator (Engine stk _))   = FloatCalculator (Engine (map fromIntegral stk) opStateFloatDefault)
+    calcToDouble   (Word32Calculator (Engine stk _))   = DoubleCalculator (Engine (map fromIntegral stk) opStateDoubleDefault)
 
 instance ConvertibleCalculator Word64Calculator where
     calcToInteger (Word64Calculator (Engine stk ops)) = IntegerCalculator (Engine (map fromIntegral stk) ops)
@@ -65,12 +65,12 @@ instance ConvertibleCalculator Word64Calculator where
     calcToWord16  (Word64Calculator (Engine stk ops)) = Word16Calculator (Engine (map fromIntegral stk) ops)
     calcToWord32  (Word64Calculator (Engine stk ops)) = Word32Calculator (Engine (map fromIntegral stk) ops)
     calcToWord64  = id
-    calcToFloat   (Word64Calculator (Engine stk _))   = FloatCalculator (Engine (map fromIntegral stk) opStateFloatDefault)
+    calcToDouble   (Word64Calculator (Engine stk _))   = DoubleCalculator (Engine (map fromIntegral stk) opStateDoubleDefault)
 
-instance ConvertibleCalculator FloatCalculator where
-    calcToInteger (FloatCalculator (Engine stk _)) = IntegerCalculator (Engine (map floor stk) opStateIntegerDefault)
-    calcToWord8   (FloatCalculator (Engine stk _)) = Word8Calculator (Engine (map floor stk) opStateIntegerDefault)
-    calcToWord16  (FloatCalculator (Engine stk _)) = Word16Calculator (Engine (map floor stk) opStateIntegerDefault)
-    calcToWord32  (FloatCalculator (Engine stk _)) = Word32Calculator (Engine (map floor stk) opStateIntegerDefault)
-    calcToWord64  (FloatCalculator (Engine stk _)) = Word64Calculator (Engine (map floor stk) opStateIntegerDefault)
-    calcToFloat   = id
+instance ConvertibleCalculator DoubleCalculator where
+    calcToInteger (DoubleCalculator (Engine stk _)) = IntegerCalculator (Engine (map floor stk) opStateIntegerDefault)
+    calcToWord8   (DoubleCalculator (Engine stk _)) = Word8Calculator (Engine (map floor stk) opStateIntegerDefault)
+    calcToWord16  (DoubleCalculator (Engine stk _)) = Word16Calculator (Engine (map floor stk) opStateIntegerDefault)
+    calcToWord32  (DoubleCalculator (Engine stk _)) = Word32Calculator (Engine (map floor stk) opStateIntegerDefault)
+    calcToWord64  (DoubleCalculator (Engine stk _)) = Word64Calculator (Engine (map floor stk) opStateIntegerDefault)
+    calcToDouble   = id

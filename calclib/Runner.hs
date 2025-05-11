@@ -64,7 +64,7 @@ doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = processChar initialCalc acc x
     in case newAcc of 
         "\\x" -> return ()
-        "\\f" -> startCalculator (calcToFloat newCalc) xs
+        "\\f" -> startCalculator (calcToDouble newCalc) xs
         "\\i" -> startCalculator (calcToInteger newCalc) xs
         "\\8" -> startCalculator (calcToWord8 newCalc) xs
         "\\16" -> startCalculator (calcToWord16 newCalc) xs

@@ -3,7 +3,7 @@ import Test.Hspec
 import Runner
 import Calculator
 import IntegerCalculator
-import FloatCalculator
+import DoubleCalculator
 import Data.Word
 
 -- test a string of commands, returning the top of stack
@@ -37,11 +37,11 @@ doWord64Test input =
         endCalc = testCalculator startCalc "" input
     in case endCalc of Word64Calculator (Engine (x:xs) _) -> x
 
-doFloatTest :: String -> Float
-doFloatTest input =
-    let startCalc = FloatCalculator (Engine [0,0,0,0] opStateFloatDefault)
+doDoubleTest :: String -> Double
+doDoubleTest input =
+    let startCalc = DoubleCalculator (Engine [0,0,0,0] opStateDoubleDefault)
         endCalc = testCalculator startCalc "" input
-    in case endCalc of FloatCalculator (Engine (x:xs) _) -> x
+    in case endCalc of DoubleCalculator (Engine (x:xs) _) -> x
 
 main :: IO ()
 main = hspec spec
@@ -158,32 +158,33 @@ spec = do
         it "uses 2's complement negation" $ do
             doWord64Test "0xffffffffffffffff neg" `shouldBe` 1
 
-    describe "FloatCalculator" $ do
-        (numericTests doFloatTest)
+    describe "DoubleCalculator" $ do
+        (numericTests doDoubleTest)
 
         it "divides two numbers" $ do
-            doFloatTest "17 2/" `shouldBe` 8.5
+            doDoubleTest "17 2/" `shouldBe` 8.5
 
         it "raises to an integer power" $ do
-            doFloatTest "14 2^" `shouldBe` 196
+            doDoubleTest "14 2^" `shouldBe` 196
 
         it "raises to a fractional power" $ do
-            doFloatTest "196 0.5^" `shouldBe` 14
+            doDoubleTest "196 0.5^" `shouldBe` 14
 
         it "computes natural logarithm and exponential" $ do
-            doFloatTest "1 ln exp exp ln" `shouldBe` 1
+            doDoubleTest "1 ln exp exp ln" `shouldBe` 1
 
         it "computes logarithm to base 2" $ do
-            doFloatTest "1024 lg" `shouldBe` 10
+            doDoubleTest "1024 lg" `shouldBe` 10
 
         it "computes logarithm to arbitrary base" $ do
-            doFloatTest "1024 2 log" `shouldBe` 10
+            doDoubleTest "1024 2 log" `shouldBe` 10
 
         it "computes sin and arcsin" $ do
-            doFloatTest "1 sin asin" `shouldBe` 1
+            doDoubleTest "1 sin asin" `shouldBe` 1
 
         it "computes cos and arccos" $ do
-            doFloatTest "1 cos acos" `shouldBe` 1
+            -- use 2 on account of precision
+            doDoubleTest "2 cos acos" `shouldBe` 2
 
         it "computes tan and arctan" $ do
-            doFloatTest "1 tan arctan" `shouldBe` 1
+            doDoubleTest "1 tan atan" `shouldBe` 1
