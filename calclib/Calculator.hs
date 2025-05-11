@@ -96,8 +96,11 @@ numericOps =
         , ("*", stackOp2(*))
         , ("neg", stackOp1 negate)
         , ("dup", dup)
+        , ("=", dup)
         , ("swap", swap)
+        , ("`", swap)
         , ("drop", drop1)
+        , ("?", drop1)
         ]
 
 -- genericConsume is a function that can be used to implement calcConsume.
