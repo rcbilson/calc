@@ -11,7 +11,7 @@ module Calculator (
     numericOps,
     genericConsume ) where
 
--- A Calculator is something that consume string input and display itself
+-- A Calculator is something that consumes string input and displays itself
 class Calculator a where
     -- calcDisplay outputs a textual representation of the calculator state.
     -- The expectation is that this is 5 lines, one for operational state and

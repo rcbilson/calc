@@ -101,22 +101,35 @@ formatNoWsize b c v
     | v < 0     = '-':(formatNoWsize b c (-v))
     | otherwise = reverse $ c $ map intDigit $ remainders b v
 
+displayOps :: OpStateInteger -> String
+displayOps ops =
+    let
+        chunkStr = case (chunk ops) of
+            NoChunk -> " nochunk"
+            _ -> ""
+        baseStr = case (base ops) of
+            BaseBin -> " bin"
+            BaseHex -> " hex"
+            BaseDec -> " dec"
+    in
+        baseStr ++ chunkStr
+
 -- displayIntegral displays the state of an integral calculator.
 -- It displays the opState and then uses the given formatter function
 -- to display the top four stack entries.
-displayIntegral :: Integral a => (a -> [Char]) -> Engine a OpStateInteger -> IO ()
-displayIntegral format (Engine (x:y:z:t:_) ops) = do
-    putStrLn $ show ops
+displayIntegral :: Integral a => [Char] -> (a -> [Char]) -> Engine a OpStateInteger -> IO ()
+displayIntegral name format (Engine (x:y:z:t:_) ops) = do
+    putStrLn $ name ++ (displayOps ops)
     putStrLn $ "t " ++ (format t)
     putStrLn $ "z " ++ (format z)
     putStrLn $ "y " ++ (format y)
     putStrLn $ "x " ++ (format x)
-displayIntegral _ _ = error("displayIntegral underflow")
+displayIntegral _ _ _ = error("displayIntegral underflow")
 
 -- displayInteger displays the state of an integral calculator without
 -- a constraint on the word size.
-displayInteger :: Integral a => Engine a OpStateInteger -> IO ()
-displayInteger eng@(Engine _ ops) =
+displayInteger :: Integral a => [Char] -> Engine a OpStateInteger -> IO ()
+displayInteger title eng@(Engine _ ops) =
     let (b, c) = case (base ops) of
             BaseBin -> (2, 4)
             BaseDec -> (10, 3)
@@ -125,7 +138,7 @@ displayInteger eng@(Engine _ ops) =
             Chunk -> chunkDigits c
             NoChunk -> id
         format = formatNoWsize b chunkFn
-    in displayIntegral format eng
+    in displayIntegral title format eng
 
 -- IntegerCalculator holds the state of an infinite-precision integer calculator
 data IntegerCalculator = IntegerCalculator (Engine Integer OpStateInteger)
@@ -138,7 +151,7 @@ intConsume :: (Integral a, Bits a) => (String -> [(a, String)]) -> Engine a OpSt
 intConsume = genericConsume (flip Map.lookup intOps)
 
 instance Calculator IntegerCalculator where
-    calcDisplay (IntegerCalculator engine) = displayInteger engine
+    calcDisplay (IntegerCalculator engine) = displayInteger "Integer" engine
     calcConsume (IntegerCalculator engine) str = let (eng, rest) = intConsume reads engine str in (IntegerCalculator(eng), rest)
 
 -- defaultCalculator is the kind of calculator used when the program starts.
@@ -158,8 +171,8 @@ formatWsize w b c v
 
 -- displayFixed displays the state of an integral calculator with
 -- a constraint on the word size.
-displayFixed :: (Integral a, FiniteBits a) => Engine a OpStateInteger -> IO ()
-displayFixed eng@(Engine (x:_) ops) =
+displayFixed :: (Integral a, FiniteBits a) => [Char] -> Engine a OpStateInteger -> IO ()
+displayFixed title eng@(Engine (x:_) ops) =
     let (b, c, w) = case (base ops) of
             BaseBin -> (2, 4, (finiteBitSize x))
             BaseDec -> (10, 3, 1)
@@ -168,33 +181,33 @@ displayFixed eng@(Engine (x:_) ops) =
             Chunk -> chunkDigits c
             NoChunk -> id
         format = formatWsize w b chunkFn
-    in displayIntegral format eng
-displayFixed _ = error("displayFixed underflow")
+    in displayIntegral title format eng
+displayFixed _ _ = error("displayFixed underflow")
 
 -- Word8Calculator holds the state of a calculator that operates on Word8s
 data Word8Calculator = Word8Calculator (Engine Word8 OpStateInteger)
 
 instance Calculator Word8Calculator where
-    calcDisplay (Word8Calculator engine) = displayFixed engine
+    calcDisplay (Word8Calculator engine) = displayFixed "Word8" engine
     calcConsume (Word8Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word8Calculator eng, rest)
 
 -- Word16Calculator holds the state of a calculator that operates on Word16s
 data Word16Calculator = Word16Calculator (Engine Word16 OpStateInteger)
 
 instance Calculator Word16Calculator where
-    calcDisplay (Word16Calculator engine) = displayFixed engine
+    calcDisplay (Word16Calculator engine) = displayFixed "Word16" engine
     calcConsume (Word16Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word16Calculator eng, rest)
 
 -- Word32Calculator holds the state of a calculator that operates on Word32s
 data Word32Calculator = Word32Calculator (Engine Word32 OpStateInteger)
 
 instance Calculator Word32Calculator where
-    calcDisplay (Word32Calculator engine) = displayFixed engine
+    calcDisplay (Word32Calculator engine) = displayFixed "Word32" engine
     calcConsume (Word32Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word32Calculator eng, rest)
 
 -- Word64Calculator holds the state of a calculator that operates on Word64s
 data Word64Calculator = Word64Calculator (Engine Word64 OpStateInteger)
 
 instance Calculator Word64Calculator where
-    calcDisplay (Word64Calculator engine) = displayFixed engine
+    calcDisplay (Word64Calculator engine) = displayFixed "Word64" engine
     calcConsume (Word64Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word64Calculator eng, rest)

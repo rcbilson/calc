@@ -48,7 +48,9 @@ displayFloat (Engine (x:y:z:t:_) ops) = do
             (Just w, Nothing) -> printf "%%%dg" w
             (Nothing, Just p) -> printf "%%.%dg" p
             (Just w, Just p) -> printf "%%%d.%dg" w p
-    putStrLn $ show ops
+        widthstr = maybe "" (printf " w=%d") (width ops)
+        precstr = maybe "" (printf " p=%d") (prec ops)
+    printf "Float%s%s\n" widthstr precstr
     printf ("t " ++ format ++ "\n") t
     printf ("z " ++ format ++ "\n") z
     printf ("y " ++ format ++ "\n") y
