@@ -10,12 +10,13 @@ import Text.Printf
 data OpStateDouble = OpStateDouble
     { prec :: Maybe Int
     , width :: Maybe Int
+    , dms :: Bool
     } deriving Show
 
 -- opStateDoubleDefault is the operational state that a DoubleCalculator
 -- should start with.
 opStateDoubleDefault :: OpStateDouble
-opStateDoubleDefault = OpStateDouble{ prec = Nothing, width = Nothing }
+opStateDoubleDefault = OpStateDouble{ prec = Nothing, width = Nothing, dms = False }
 
 -- setp sets the precision
 setp :: Engine Double OpStateDouble -> Engine Double OpStateDouble
@@ -49,24 +50,61 @@ floatOps = Map.fromList $ numericOps ++
         , ("setp", setp)
         , ("clearw", opStateOp (\s -> s{width = Nothing}))
         , ("setw", setw)
+        , ("dms", opStateOp (\s -> s{dms = (not (dms s))}))
         ] 
 
--- displayDouble displays the state of a DoubleCalculator
-displayDouble :: Engine Double OpStateDouble -> IO ()
-displayDouble (Engine (x:y:z:t:_) ops) = do
-    let format = case ((width ops), (prec ops)) of
-            (Nothing, Nothing) -> "%g"
-            (Just w, Nothing) -> printf "%%%dg" w
-            (Nothing, Just p) -> printf "%%.%dg" p
-            (Just w, Just p) -> printf "%%%d.%dg" w p
-        widthstr = maybe "" (printf " w=%d") (width ops)
+doubleFormat :: String -> OpStateDouble -> String
+doubleFormat char ops =
+    case ((width ops), (prec ops)) of
+        (Nothing, Nothing) -> "%" ++ char
+        (Just w, Nothing) -> printf ("%%%d" ++ char) w
+        (Nothing, Just p) -> printf ("%%.%d" ++ char) p
+        (Just w, Just p) -> printf ("%%%d.%d" ++ char) w p
+
+displayOpState :: OpStateDouble -> IO ()
+displayOpState ops =
+    let widthstr = maybe "" (printf " w=%d") (width ops)
         precstr = maybe "" (printf " p=%d") (prec ops)
-    printf "Double%s%s\n" widthstr precstr
+        dmsstr = if dms ops then " dms" else ""
+    in printf "Double%s%s%s\n" widthstr precstr dmsstr
+
+-- displayDouble displays the state of a DoubleCalculator
+displayDoubleOrdinary :: Engine Double OpStateDouble -> IO ()
+displayDoubleOrdinary (Engine (x:y:z:t:_) ops) = do
+    let format = doubleFormat "g" ops
+    displayOpState ops
     printf ("t " ++ format ++ "\n") t
     printf ("z " ++ format ++ "\n") z
     printf ("y " ++ format ++ "\n") y
     printf ("x " ++ format ++ "\n") x
-displayDouble _ = error("displayDouble underflow")
+displayDoubleOrdinary _ = error("displayDouble underflow")
+
+displayDMS :: OpStateDouble -> Double -> String
+displayDMS ops x =
+    let deg = floor x
+        min_f = (x - (fromInteger deg)) * 60
+        min = floor min_f
+        sec_f = (min_f - (fromInteger min)) * 60
+        sec = floor sec_f
+        frac = sec_f - (fromInteger sec)
+        fracstr = printf (doubleFormat "f" ops) frac
+    in printf ("%02d:%02d:%02d%s") deg min sec (drop 1 (fracstr :: String))
+
+-- displayDouble displays the state of a DoubleCalculator
+displayDoubleDMS :: Engine Double OpStateDouble -> IO ()
+displayDoubleDMS (Engine (x:y:z:t:_) ops) = do
+    displayOpState ops
+    putStrLn ("t " ++ (displayDMS ops t))
+    putStrLn ("z " ++ (displayDMS ops z))
+    putStrLn ("y " ++ (displayDMS ops y))
+    putStrLn ("x " ++ (displayDMS ops x))
+displayDoubleDMS _ = error("displayDouble underflow")
+
+displayDouble :: Engine Double OpStateDouble -> IO ()
+displayDouble eng@(Engine _ ops) =
+    if dms ops
+    then displayDoubleDMS eng
+    else displayDoubleOrdinary eng
 
 -- DoubleCalculator holds the state of a floating-point calculator.
 data DoubleCalculator = DoubleCalculator (Engine Double OpStateDouble)
