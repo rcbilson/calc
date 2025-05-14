@@ -2,7 +2,9 @@ module DoubleCalculator ( DoubleCalculator(DoubleCalculator), opStateDoubleDefau
 
 import Calculator
 import qualified Data.Map.Strict as Map
+import Data.Array
 import Text.Printf
+import Text.Regex.TDFA
 
 -- OpStateDouble is the operational state for the DoubleCalculator
 --   - prec: precision (number of places after the decimal)
@@ -53,6 +55,8 @@ floatOps = Map.fromList $ numericOps ++
         , ("dms", opStateOp (\s -> s{dms = (not (dms s))}))
         ] 
 
+-- doubleFormat constructs a printf format for Doubles
+--   char must be 'e' 'f' 'g' per printf rules
 doubleFormat :: String -> OpStateDouble -> String
 doubleFormat char ops =
     case ((width ops), (prec ops)) of
@@ -61,6 +65,7 @@ doubleFormat char ops =
         (Nothing, Just p) -> printf ("%%.%d" ++ char) p
         (Just w, Just p) -> printf ("%%%d.%d" ++ char) w p
 
+-- displayOpState formats an OpStateDouble for display
 displayOpState :: OpStateDouble -> IO ()
 displayOpState ops =
     let widthstr = maybe "" (printf " w=%d") (width ops)
@@ -79,6 +84,7 @@ displayDoubleOrdinary (Engine (x:y:z:t:_) ops) = do
     printf ("x " ++ format ++ "\n") x
 displayDoubleOrdinary _ = error("displayDouble underflow")
 
+-- displayDMS formats a Double in D/M/S format
 displayDMS :: OpStateDouble -> Double -> String
 displayDMS ops x =
     let deg = floor x
@@ -90,7 +96,7 @@ displayDMS ops x =
         fracstr = printf (doubleFormat "f" ops) frac
     in printf ("%02d:%02d:%02d%s") deg min sec (drop 1 (fracstr :: String))
 
--- displayDouble displays the state of a DoubleCalculator
+-- displayDouble displays the state of a DoubleCalculator in D/M/S format
 displayDoubleDMS :: Engine Double OpStateDouble -> IO ()
 displayDoubleDMS (Engine (x:y:z:t:_) ops) = do
     displayOpState ops
@@ -100,11 +106,31 @@ displayDoubleDMS (Engine (x:y:z:t:_) ops) = do
     putStrLn ("x " ++ (displayDMS ops x))
 displayDoubleDMS _ = error("displayDouble underflow")
 
+-- displayDouble displays the state of a DoubleCalculator in D/M/S format
 displayDouble :: Engine Double OpStateDouble -> IO ()
 displayDouble eng@(Engine _ ops) =
     if dms ops
     then displayDoubleDMS eng
     else displayDoubleOrdinary eng
+
+-- dmsRegex describes a D/M/S constant
+dmsRegex :: Regex
+dmsRegex = makeRegex "^([0-9]+):([0-9]+)(:([0-9]+))?"
+
+-- readDouble parses a double value from the given string
+--   it accepts either D/M/S or 'reads' format
+--   it returns an empty list if nothing was parsed
+--   otherwise it returns a list with a pair of the Double and the remainder of the string
+readDouble :: String -> [(Double, String)]
+readDouble inp =
+    case matchOnceText dmsRegex inp of
+        Nothing -> reads inp
+        Just (_, arr, rest) ->
+            case elems arr of
+                (_:(d,_):(m,_):_:("",_):_) -> assemble (read d) (read m) 0 rest
+                (_:(d,_):(m,_):_:(s,_):_) -> assemble (read d) (read m) (read s) rest
+    where
+        assemble d m s rest = [(d + (m/60) + (s/3600), rest)]
 
 -- DoubleCalculator holds the state of a floating-point calculator.
 data DoubleCalculator = DoubleCalculator (Engine Double OpStateDouble)
@@ -114,7 +140,7 @@ data DoubleCalculator = DoubleCalculator (Engine Double OpStateDouble)
 -- one is found, and then returns the updated engine and the remainder of the
 -- string.
 floatConsume :: Engine Double OpStateDouble -> String -> (Engine Double OpStateDouble, String)
-floatConsume = genericConsume (flip Map.lookup floatOps) reads
+floatConsume = genericConsume (flip Map.lookup floatOps) readDouble
 
 instance Calculator DoubleCalculator where
     calcDisplay (DoubleCalculator engine) = displayDouble engine

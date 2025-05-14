@@ -129,6 +129,7 @@ genericConsume lookupOp readNum eng str =
         -- continue accumulating characters.
         (_, ""):_   -> (eng, str)
         (_, "."):_  -> (eng, str)
+        (_, ":"):_  -> (eng, str)
         (num, rest):_ ->
             -- special case: if the character caused a token to be returned, it might
             -- be the case that the remainder is also a valid token (consider the input
