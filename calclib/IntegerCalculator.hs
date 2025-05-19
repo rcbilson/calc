@@ -1,5 +1,8 @@
-module IntegerCalculator ( defaultCalculator,
-    opStateIntegerDefault,
+module IntegerCalculator ( makeIntegerCalculator,
+    makeWord8Calculator,
+    makeWord16Calculator,
+    makeWord32Calculator,
+    makeWord64Calculator,
     IntegerCalculator(IntegerCalculator),
     Word8Calculator(Word8Calculator),
     Word16Calculator(Word16Calculator),
@@ -28,12 +31,12 @@ opStateIntegerDefault :: OpStateInteger
 opStateIntegerDefault = OpStateInteger { base = BaseDec, chunk = Chunk }
 
 -- toggleChunk toggles the state of output chunking.
-toggleChunk :: Engine a OpStateInteger -> Engine a OpStateInteger
+toggleChunk :: EngineFn a OpStateInteger
 toggleChunk (Engine stk ops) = case chunk ops of
-    NoChunk -> Engine stk ops{chunk=Chunk}
-    Chunk   -> Engine stk ops{chunk=NoChunk}
+    NoChunk -> (Engine stk ops{chunk=Chunk}, Undo [])
+    Chunk   -> (Engine stk ops{chunk=NoChunk}, Undo [])
 
-intOps :: (Integral a, Bits a) => Map.Map String (Engine a OpStateInteger -> Engine a OpStateInteger)
+intOps :: (Integral a, Bits a) => Map.Map String (EngineFn a OpStateInteger)
 intOps = Map.fromList $ numericOps ++
         [ ("bin", opStateOp (\s -> s{base = BaseBin}))
         , ("dec", opStateOp (\s -> s{base = BaseDec}))
@@ -141,22 +144,21 @@ displayInteger title eng@(Engine _ ops) =
     in displayIntegral title format eng
 
 -- IntegerCalculator holds the state of an infinite-precision integer calculator
-data IntegerCalculator = IntegerCalculator (Engine Integer OpStateInteger)
+data IntegerCalculator = IntegerCalculator (Engine Integer OpStateInteger) [Undo Integer OpStateInteger] [Undo Integer OpStateInteger]
 
 -- floatConsume attempts to find a prefix of the given string that is one of
 -- the defined integer operations or can be parsed as a number using the given
 -- function. It updates the engine if one is found, and then returns the
 -- updated engine and the remainder of the string.
-intConsume :: (Integral a, Bits a) => (String -> [(a, String)]) -> Engine a OpStateInteger -> String -> (Engine a OpStateInteger, String)
+intConsume :: (Integral a, Bits a) => (String -> [(a, String)]) -> Engine a OpStateInteger -> String -> (Engine a OpStateInteger, String, [Undo a OpStateInteger])
 intConsume = genericConsume (flip Map.lookup intOps)
 
 instance Calculator IntegerCalculator where
-    calcDisplay (IntegerCalculator engine) = displayInteger "Integer" engine
-    calcConsume (IntegerCalculator engine) str = let (eng, rest) = intConsume reads engine str in (IntegerCalculator(eng), rest)
+    calcDisplay (IntegerCalculator engine _ _) = displayInteger "Integer" engine
+    calcConsume (IntegerCalculator engine _ _) str = let (eng, rest, _) = intConsume reads engine str in (IntegerCalculator(eng) [] [], rest)
 
--- defaultCalculator is the kind of calculator used when the program starts.
-defaultCalculator :: IntegerCalculator
-defaultCalculator = IntegerCalculator (Engine [0,0,0,0] opStateIntegerDefault)
+makeIntegerCalculator :: Stack Integer -> IntegerCalculator
+makeIntegerCalculator stk = IntegerCalculator (Engine stk opStateIntegerDefault) [] []
 
 ---------------------- Fixed-width ---------------------------
 
@@ -185,29 +187,41 @@ displayFixed title eng@(Engine (x:_) ops) =
 displayFixed _ _ = error("displayFixed underflow")
 
 -- Word8Calculator holds the state of a calculator that operates on Word8s
-data Word8Calculator = Word8Calculator (Engine Word8 OpStateInteger)
+data Word8Calculator = Word8Calculator (Engine Word8 OpStateInteger) [Undo Word8 OpStateInteger] [Undo Word8 OpStateInteger]
 
 instance Calculator Word8Calculator where
-    calcDisplay (Word8Calculator engine) = displayFixed "Word8" engine
-    calcConsume (Word8Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word8Calculator eng, rest)
+    calcDisplay (Word8Calculator engine _ _) = displayFixed "Word8" engine
+    calcConsume (Word8Calculator engine _ _) str = let (eng, rest, _) = intConsume reads engine str in (Word8Calculator eng [] [], rest)
+
+makeWord8Calculator :: Stack Word8 -> Word8Calculator
+makeWord8Calculator stk = Word8Calculator (Engine stk opStateIntegerDefault) [] []
 
 -- Word16Calculator holds the state of a calculator that operates on Word16s
-data Word16Calculator = Word16Calculator (Engine Word16 OpStateInteger)
+data Word16Calculator = Word16Calculator (Engine Word16 OpStateInteger) [Undo Word16 OpStateInteger] [Undo Word16 OpStateInteger]
 
 instance Calculator Word16Calculator where
-    calcDisplay (Word16Calculator engine) = displayFixed "Word16" engine
-    calcConsume (Word16Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word16Calculator eng, rest)
+    calcDisplay (Word16Calculator engine _ _) = displayFixed "Word16" engine
+    calcConsume (Word16Calculator engine _ _) str = let (eng, rest, _) = intConsume reads engine str in (Word16Calculator eng [] [], rest)
+
+makeWord16Calculator :: Stack Word16 -> Word16Calculator
+makeWord16Calculator stk = Word16Calculator (Engine stk opStateIntegerDefault) [] []
 
 -- Word32Calculator holds the state of a calculator that operates on Word32s
-data Word32Calculator = Word32Calculator (Engine Word32 OpStateInteger)
+data Word32Calculator = Word32Calculator (Engine Word32 OpStateInteger) [Undo Word32 OpStateInteger] [Undo Word32 OpStateInteger]
 
 instance Calculator Word32Calculator where
-    calcDisplay (Word32Calculator engine) = displayFixed "Word32" engine
-    calcConsume (Word32Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word32Calculator eng, rest)
+    calcDisplay (Word32Calculator engine _ _) = displayFixed "Word32" engine
+    calcConsume (Word32Calculator engine _ _) str = let (eng, rest, _) = intConsume reads engine str in (Word32Calculator eng [] [], rest)
+
+makeWord32Calculator :: Stack Word32 -> Word32Calculator
+makeWord32Calculator stk = Word32Calculator (Engine stk opStateIntegerDefault) [] []
 
 -- Word64Calculator holds the state of a calculator that operates on Word64s
-data Word64Calculator = Word64Calculator (Engine Word64 OpStateInteger)
+data Word64Calculator = Word64Calculator (Engine Word64 OpStateInteger) [Undo Word64 OpStateInteger] [Undo Word64 OpStateInteger]
 
 instance Calculator Word64Calculator where
-    calcDisplay (Word64Calculator engine) = displayFixed "Word64" engine
-    calcConsume (Word64Calculator engine) str = let (eng, rest) = intConsume reads engine str in (Word64Calculator eng, rest)
+    calcDisplay (Word64Calculator engine _ _) = displayFixed "Word64" engine
+    calcConsume (Word64Calculator engine _ _) str = let (eng, rest, _) = intConsume reads engine str in (Word64Calculator eng [] [], rest)
+
+makeWord64Calculator :: Stack Word64 -> Word64Calculator
+makeWord64Calculator stk = Word64Calculator (Engine stk opStateIntegerDefault) [] []

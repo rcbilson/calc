@@ -1,4 +1,4 @@
-module DoubleCalculator ( DoubleCalculator(DoubleCalculator), opStateDoubleDefault ) where
+module DoubleCalculator ( DoubleCalculator(DoubleCalculator), makeDoubleCalculator, defaultCalculator ) where
 
 import Calculator
 import qualified Data.Map.Strict as Map
@@ -21,19 +21,19 @@ opStateDoubleDefault :: OpStateDouble
 opStateDoubleDefault = OpStateDouble{ prec = Nothing, width = Nothing, dms = False }
 
 -- setp sets the precision
-setp :: Engine Double OpStateDouble -> Engine Double OpStateDouble
-setp (Engine (x:xs) ops) = Engine (ensureStack xs) ops{prec=Just $ floor x}
+setp :: EngineFn Double OpStateDouble
+setp (Engine (x:xs) ops) = (Engine (ensureStack xs) ops{prec=Just $ floor x}, Undo [])
 setp _ = error("setp underflow")
 
 -- setw sets the width
-setw :: Engine Double OpStateDouble -> Engine Double OpStateDouble
-setw (Engine (x:xs) ops) = Engine (ensureStack xs) ops{width=Just $ floor x}
+setw :: EngineFn Double OpStateDouble
+setw (Engine (x:xs) ops) = (Engine (ensureStack xs) ops{width=Just $ floor x}, Undo [])
 setw _ = error("setw underflow")
 
 -- floatOps is a list of all of the operations available in the DoubleCalculator.
 -- This includes the commom numericOps, mathematical operations that are specific
 -- to Doubles, and operations on the operational state.
-floatOps :: Map.Map String (Engine Double OpStateDouble -> Engine Double OpStateDouble)
+floatOps :: Map.Map String (EngineFn Double OpStateDouble)
 floatOps = Map.fromList $ numericOps ++
         [ ("/", stackOp2(/))
         , ("^", stackOp2(**))
@@ -133,15 +133,32 @@ readDouble inp =
         assemble d m s rest = [(d + (m/60) + (s/3600), rest)]
 
 -- DoubleCalculator holds the state of a floating-point calculator.
-data DoubleCalculator = DoubleCalculator (Engine Double OpStateDouble)
+data DoubleCalculator = DoubleCalculator
+    { engine :: Engine Double OpStateDouble
+    , undos :: [Undo Double OpStateDouble]
+    , redos :: [Undo Double OpStateDouble]
+    }
 
 -- floatConsume attempts to find a prefix of the given string that represents a
 -- datum or one of the defined floating-point operations, updates the engine if
 -- one is found, and then returns the updated engine and the remainder of the
 -- string.
-floatConsume :: Engine Double OpStateDouble -> String -> (Engine Double OpStateDouble, String)
+floatConsume :: Engine Double OpStateDouble -> String -> (Engine Double OpStateDouble, String, [Undo Double OpStateDouble])
 floatConsume = genericConsume (flip Map.lookup floatOps) readDouble
 
 instance Calculator DoubleCalculator where
-    calcDisplay (DoubleCalculator engine) = displayDouble engine
-    calcConsume (DoubleCalculator engine) str = let (eng, rest) = floatConsume engine str in (DoubleCalculator(eng), rest)
+    calcDisplay (DoubleCalculator engine u r) = do
+        printf "u:%d r:%d\n" (length u) (length r)
+        displayDouble engine
+    calcConsume (DoubleCalculator engine undos _) str =
+        let (eng, rest, u) = floatConsume engine str
+        in (DoubleCalculator eng (u ++ undos) [], rest)
+    calcUndo    (DoubleCalculator engine undos redos) = let (e, u, r) = genericUndo engine undos redos in DoubleCalculator e u r
+    calcRedo    (DoubleCalculator engine undos redos) = let (e, r, u) = genericUndo engine redos undos in DoubleCalculator e u r
+
+makeDoubleCalculator :: Integral a => Stack a -> DoubleCalculator
+makeDoubleCalculator stk = DoubleCalculator (Engine (map fromIntegral stk) opStateDoubleDefault) [] []
+
+-- defaultCalculator is the kind of calculator used when the program starts.
+defaultCalculator :: DoubleCalculator
+defaultCalculator = makeDoubleCalculator [0,0,0,0]

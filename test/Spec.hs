@@ -9,39 +9,39 @@ import Data.Word
 -- test a string of commands, returning the top of stack
 doIntegerTest :: String -> Integer
 doIntegerTest input =
-    let startCalc = IntegerCalculator (Engine [0,0,0,0] opStateIntegerDefault)
+    let startCalc = makeIntegerCalculator [0,0,0,0]
         endCalc = testCalculator startCalc "" input
-    in case endCalc of IntegerCalculator (Engine (x:xs) _) -> x
+    in case endCalc of IntegerCalculator (Engine (x:xs) _) _ _ -> x
 
 doWord8Test :: String -> Word8
 doWord8Test input =
-    let startCalc = Word8Calculator (Engine [0,0,0,0] opStateIntegerDefault)
+    let startCalc = makeWord8Calculator [0,0,0,0]
         endCalc = testCalculator startCalc "" input
-    in case endCalc of Word8Calculator (Engine (x:xs) _) -> x
+    in case endCalc of Word8Calculator (Engine (x:xs) _) _ _ -> x
 
 doWord16Test :: String -> Word16
 doWord16Test input =
-    let startCalc = Word16Calculator (Engine [0,0,0,0] opStateIntegerDefault)
+    let startCalc = makeWord16Calculator [0,0,0,0]
         endCalc = testCalculator startCalc "" input
-    in case endCalc of Word16Calculator (Engine (x:xs) _) -> x
+    in case endCalc of Word16Calculator (Engine (x:xs) _) _ _ -> x
 
 doWord32Test :: String -> Word32
 doWord32Test input =
-    let startCalc = Word32Calculator (Engine [0,0,0,0] opStateIntegerDefault)
+    let startCalc = makeWord32Calculator [0,0,0,0]
         endCalc = testCalculator startCalc "" input
-    in case endCalc of Word32Calculator (Engine (x:xs) _) -> x
+    in case endCalc of Word32Calculator (Engine (x:xs) _) _ _ -> x
 
 doWord64Test :: String -> Word64
 doWord64Test input =
-    let startCalc = Word64Calculator (Engine [0,0,0,0] opStateIntegerDefault)
+    let startCalc = makeWord64Calculator [0,0,0,0]
         endCalc = testCalculator startCalc "" input
-    in case endCalc of Word64Calculator (Engine (x:xs) _) -> x
+    in case endCalc of Word64Calculator (Engine (x:xs) _) _ _ -> x
 
 doDoubleTest :: String -> Double
 doDoubleTest input =
-    let startCalc = DoubleCalculator (Engine [0,0,0,0] opStateDoubleDefault)
+    let startCalc = makeDoubleCalculator [0,0,0,0]
         endCalc = testCalculator startCalc "" input
-    in case endCalc of DoubleCalculator (Engine (x:xs) _) -> x
+    in case endCalc of DoubleCalculator (Engine (x:xs) _) _ _ -> x
 
 main :: IO ()
 main = hspec spec
@@ -73,6 +73,9 @@ numericTests doTest = do
 
     it "duplicates a number" $ do
       doTest "2 dup drop" `shouldBe` 2
+
+    it "undoes a unary operation" $ do
+      doTest "17negu" `shouldBe` 17
 
 integerTests doTest = do
     (numericTests doTest)

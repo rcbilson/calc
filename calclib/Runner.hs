@@ -1,6 +1,6 @@
 module Runner (startCalculator, defaultCalculator, testCalculator) where
 
-import IntegerCalculator
+import DoubleCalculator
 import Calculator
 import ConvertibleCalculator
 
@@ -52,7 +52,10 @@ testCalculator :: Calculator a => a -> [Char] -> [Char] -> a
 testCalculator initialCalc _ [] = initialCalc
 testCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = processChar initialCalc acc x
-    in testCalculator newCalc newAcc xs
+    in case newAcc of
+        "u" -> testCalculator (calcUndo newCalc) "" xs
+        "U" -> testCalculator (calcRedo newCalc) "" xs
+        _ -> testCalculator newCalc newAcc xs
 
 -- doCalculator is the calculator main loop, consuming input characters one at a
 -- time and displaying the updated state of the calculator at each step.
@@ -70,6 +73,14 @@ doCalculator initialCalc acc (x:xs) =
         "\\16" -> startCalculator (calcToWord16 newCalc) xs
         "\\32" -> startCalculator (calcToWord32 newCalc) xs
         "\\64" -> startCalculator (calcToWord64 newCalc) xs
+        "u" -> do
+            let undone = (calcUndo newCalc)
+            showCalculator undone ""
+            doCalculator undone "" xs
+        "U" -> do
+            let redone = (calcRedo newCalc)
+            showCalculator redone ""
+            doCalculator redone "" xs
         _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
