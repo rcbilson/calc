@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Calculator (
-    CalcImpl( CalcImpl ),
+    Calculator( Calculator ),
     calcEngine,
     calcUndos,
     calcRedos,
@@ -111,29 +111,29 @@ genericUndo engine ((Undo undos):rest) redos =
     in (newEngine, rest, (Undo redo):redos)
 genericUndo engine [] redos = (engine, [], redos)
 
-calcUndo :: CalcImpl a b -> CalcImpl a b
+calcUndo :: Calculator a b -> Calculator a b
 calcUndo c =
     let (e, u, r) = genericUndo (calcEngine c) (calcUndos c) (calcRedos c)
     in c{ calcEngine = e, calcUndos=u, calcRedos=r }
 
-calcRedo :: CalcImpl a b -> CalcImpl a b
+calcRedo :: Calculator a b -> Calculator a b
 calcRedo c =
     let (e, r, u) = genericUndo (calcEngine c) (calcRedos c) (calcUndos c)
     in c{ calcEngine = e, calcUndos=u, calcRedos=r }
 
-data CalcImpl a b = CalcImpl
+data Calculator a b = Calculator
     { calcEngine :: Engine a b
     , calcUndos :: [Undo a b]
     , calcRedos :: [Undo a b]
     , calcOp :: String -> Maybe (EngineFn a b)
     , calcReads :: String -> [(a, String)]
-    , calcDisp :: CalcImpl a b -> IO()
+    , calcDisp :: Calculator a b -> IO()
     }
 
-calcDisplay :: CalcImpl a b -> IO()
+calcDisplay :: Calculator a b -> IO()
 calcDisplay c = (calcDisp c) c
 
-calcApply :: CalcImpl a b -> EngineFn a b -> CalcImpl a b
+calcApply :: Calculator a b -> EngineFn a b -> Calculator a b
 calcApply calc f =
     let eng = calcEngine calc
         (newEng, undo) = f eng

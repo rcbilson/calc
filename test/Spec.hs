@@ -2,47 +2,33 @@ import Test.Hspec
 
 import Runner
 import Calculator
---import IntegerCalculator
+import IntegerCalculator
 import DoubleCalculator
 import Data.Word
 
 -- test a string of commands, returning the top of stack
-{-
+doGenericTest :: Calculator a b -> String -> a
+doGenericTest c input =
+    let endCalc = testCalculator c "" input
+    in case calcEngine endCalc of Engine (x:xs) _ -> x
+
 doIntegerTest :: String -> Integer
-doIntegerTest input =
-    let startCalc = makeIntegerCalculator [0,0,0,0]
-        endCalc = testCalculator startCalc "" input
-    in case endCalc of IntegerCalculator (Engine (x:xs) _) _ _ -> x
+doIntegerTest = doGenericTest testIntegerCalculator
 
 doWord8Test :: String -> Word8
-doWord8Test input =
-    let startCalc = makeWord8Calculator [0,0,0,0]
-        endCalc = testCalculator startCalc "" input
-    in case endCalc of Word8Calculator (Engine (x:xs) _) _ _ -> x
+doWord8Test = doGenericTest testWord8Calculator
 
 doWord16Test :: String -> Word16
-doWord16Test input =
-    let startCalc = makeWord16Calculator [0,0,0,0]
-        endCalc = testCalculator startCalc "" input
-    in case endCalc of Word16Calculator (Engine (x:xs) _) _ _ -> x
+doWord16Test = doGenericTest testWord16Calculator
 
 doWord32Test :: String -> Word32
-doWord32Test input =
-    let startCalc = makeWord32Calculator [0,0,0,0]
-        endCalc = testCalculator startCalc "" input
-    in case endCalc of Word32Calculator (Engine (x:xs) _) _ _ -> x
+doWord32Test = doGenericTest testWord32Calculator
 
 doWord64Test :: String -> Word64
-doWord64Test input =
-    let startCalc = makeWord64Calculator [0,0,0,0]
-        endCalc = testCalculator startCalc "" input
-    in case endCalc of Word64Calculator (Engine (x:xs) _) _ _ -> x
--}
+doWord64Test = doGenericTest testWord64Calculator
+
 doDoubleTest :: String -> Double
-doDoubleTest input =
-    let startCalc = makeDoubleCalculator [0,0,0,0]
-        endCalc = testCalculator startCalc "" input
-    in case calcEngine endCalc of Engine (x:xs) _ -> x
+doDoubleTest = doGenericTest testDoubleCalculator
 
 main :: IO ()
 main = hspec spec
@@ -123,7 +109,7 @@ integerTests doTest = do
 
 spec :: Spec
 spec = do
-{-
+
     describe "IntegerCalculator" $ do
         (integerTests doIntegerTest)
 
@@ -162,7 +148,7 @@ spec = do
 
         it "uses 2's complement negation" $ do
             doWord64Test "0xffffffffffffffff neg" `shouldBe` 1
--}
+
     describe "DoubleCalculator" $ do
         (numericTests doDoubleTest)
 

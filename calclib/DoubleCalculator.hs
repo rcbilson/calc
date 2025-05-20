@@ -1,4 +1,9 @@
-module DoubleCalculator ( makeDoubleCalculator, defaultCalculator ) where
+module DoubleCalculator (
+    testDoubleCalculator,
+    newDoubleCalculator,
+    defaultCalculator,
+    OpStateDouble,
+    opStateDoubleDefault) where
 
 import Calculator
 import qualified Data.Map.Strict as Map
@@ -132,9 +137,9 @@ readDouble inp =
     where
         assemble d m s rest = [(d + (m/60) + (s/3600), rest)]
 
-makeDoubleCalculator :: Integral a => Stack a -> CalcImpl Double OpStateDouble
-makeDoubleCalculator stk = CalcImpl
-    { calcEngine = Engine (map fromIntegral stk) opStateDoubleDefault
+newDoubleCalculator :: Stack Double -> OpStateDouble -> Calculator Double OpStateDouble
+newDoubleCalculator stk ops = Calculator
+    { calcEngine = Engine stk ops
     , calcUndos = []
     , calcRedos = []
     , calcOp = flip Map.lookup floatOps
@@ -142,6 +147,9 @@ makeDoubleCalculator stk = CalcImpl
     , calcDisp = displayDouble . calcEngine
     }
 
+testDoubleCalculator :: Calculator Double OpStateDouble
+testDoubleCalculator = newDoubleCalculator [0,0,0,0] opStateDoubleDefault
+
 -- defaultCalculator is the kind of calculator used when the program starts.
-defaultCalculator :: CalcImpl Double OpStateDouble
-defaultCalculator = makeDoubleCalculator [0,0,0,0]
+defaultCalculator :: Calculator Double OpStateDouble
+defaultCalculator = testDoubleCalculator

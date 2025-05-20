@@ -91,9 +91,9 @@ test-suite calclib-test
 library calclib
     hs-source-dirs:      calclib
     exposed-modules:     DoubleCalculator,
+                         IntegerCalculator,
                          Calculator,
-                         --IntegerCalculator,
-                         --ConvertibleCalculator,
+                         ConvertibleCalculator,
                          Runner
     build-depends:       base ^>=4.17.2.1,
                          containers ^>=0.6.7,

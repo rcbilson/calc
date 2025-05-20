@@ -1,5 +1,6 @@
 module ConvertibleCalculator (
-    ConvertibleCalculator,
+    Convertible,
+    OpState,
     calcToInteger,
     calcToWord8,
     calcToWord16,
@@ -10,67 +11,92 @@ module ConvertibleCalculator (
 import Calculator
 import IntegerCalculator
 import DoubleCalculator
+import Data.Word
 
--- A ConvertibleCalculator is a Calculator that can be converted to one of the
--- other calculator types.
---
--- This is pretty gnarly because it requires a matrix of source and destination
--- state types. It feels like it ought to be possible to abstract the
--- implementation more; I've tried a few things and didn't come up with
--- anything that was notably less gnarly. This version has the virtue of being
--- obvious.
-class Calculator a => ConvertibleCalculator a where
-    calcToInteger :: a -> IntegerCalculator
-    calcToWord8   :: a -> Word8Calculator
-    calcToWord16  :: a -> Word16Calculator
-    calcToWord32  :: a -> Word32Calculator
-    calcToWord64  :: a -> Word64Calculator
-    calcToDouble   :: a -> DoubleCalculator
+class Convertible a where
+    toIntger :: a -> Integer
+    toWord8 :: a -> Word8
+    toWord16 :: a -> Word16
+    toWord32 :: a -> Word32
+    toWord64 :: a -> Word64
+    toDouble :: a -> Double
 
-instance ConvertibleCalculator IntegerCalculator where
-    calcToInteger = id
-    calcToWord8  (IntegerCalculator (Engine stk ops) _ _) = makeWord8Calculator (map fromIntegral stk)
-    calcToWord16 (IntegerCalculator (Engine stk ops) _ _) = makeWord16Calculator (map fromIntegral stk)
-    calcToWord32 (IntegerCalculator (Engine stk ops) _ _) = makeWord32Calculator (map fromIntegral stk)
-    calcToWord64 (IntegerCalculator (Engine stk ops) _ _) = makeWord64Calculator (map fromIntegral stk)
-    calcToDouble (IntegerCalculator (Engine stk _) _ _)  = makeDoubleCalculator stk
+instance Convertible Integer where
+    toIntger = id
+    toWord8 x = fromIntegral x
+    toWord16 x = fromIntegral x
+    toWord32 x = fromIntegral x
+    toWord64 x = fromIntegral x
+    toDouble x = fromIntegral x
 
-instance ConvertibleCalculator Word8Calculator where
-    calcToInteger (Word8Calculator (Engine stk ops) _ _) = makeIntegerCalculator (map fromIntegral stk)
-    calcToWord8   = id
-    calcToWord16  (Word8Calculator (Engine stk ops) _ _) = makeWord16Calculator (map fromIntegral stk)
-    calcToWord32  (Word8Calculator (Engine stk ops) _ _) = makeWord32Calculator (map fromIntegral stk)
-    calcToWord64  (Word8Calculator (Engine stk ops) _ _) = makeWord64Calculator (map fromIntegral stk)
-    calcToDouble  (Word8Calculator (Engine stk _) _ _)   = makeDoubleCalculator stk
+instance Convertible Word8 where
+    toIntger x = fromIntegral x
+    toWord8 = id
+    toWord16 x = fromIntegral x
+    toWord32 x = fromIntegral x
+    toWord64 x = fromIntegral x
+    toDouble x = fromIntegral x
 
-instance ConvertibleCalculator Word16Calculator where
-    calcToInteger (Word16Calculator (Engine stk ops) _ _) = makeIntegerCalculator (map fromIntegral stk)
-    calcToWord8   (Word16Calculator (Engine stk ops) _ _) = makeWord8Calculator (map fromIntegral stk)
-    calcToWord16  = id
-    calcToWord32  (Word16Calculator (Engine stk ops) _ _) = makeWord32Calculator (map fromIntegral stk)
-    calcToWord64  (Word16Calculator (Engine stk ops) _ _) = makeWord64Calculator (map fromIntegral stk)
-    calcToDouble  (Word16Calculator (Engine stk _) _ _)   = makeDoubleCalculator stk
+instance Convertible Word16 where
+    toIntger x = fromIntegral x
+    toWord8 x = fromIntegral x
+    toWord16 = id
+    toWord32 x = fromIntegral x
+    toWord64 x = fromIntegral x
+    toDouble x = fromIntegral x
 
-instance ConvertibleCalculator Word32Calculator where
-    calcToInteger (Word32Calculator (Engine stk ops) _ _) = makeIntegerCalculator (map fromIntegral stk)
-    calcToWord8   (Word32Calculator (Engine stk ops) _ _) = makeWord8Calculator (map fromIntegral stk)
-    calcToWord16  (Word32Calculator (Engine stk ops) _ _) = makeWord16Calculator (map fromIntegral stk)
-    calcToWord32  = id
-    calcToWord64  (Word32Calculator (Engine stk ops) _ _) = makeWord64Calculator (map fromIntegral stk)
-    calcToDouble  (Word32Calculator (Engine stk _) _ _)   = makeDoubleCalculator stk
+instance Convertible Word32 where
+    toIntger x = fromIntegral x
+    toWord8 x = fromIntegral x
+    toWord16 x = fromIntegral x
+    toWord32 = id
+    toWord64 x = fromIntegral x
+    toDouble x = fromIntegral x
 
-instance ConvertibleCalculator Word64Calculator where
-    calcToInteger (Word64Calculator (Engine stk ops) _ _) = makeIntegerCalculator (map fromIntegral stk)
-    calcToWord8   (Word64Calculator (Engine stk ops) _ _) = makeWord8Calculator (map fromIntegral stk)
-    calcToWord16  (Word64Calculator (Engine stk ops) _ _) = makeWord16Calculator (map fromIntegral stk)
-    calcToWord32  (Word64Calculator (Engine stk ops) _ _) = makeWord32Calculator (map fromIntegral stk)
-    calcToWord64  = id
-    calcToDouble  (Word64Calculator (Engine stk _) _ _)   = makeDoubleCalculator stk
+instance Convertible Word64 where
+    toIntger x = fromIntegral x
+    toWord8 x = fromIntegral x
+    toWord16 x = fromIntegral x
+    toWord32 x = fromIntegral x
+    toWord64 = id
+    toDouble x = fromIntegral x
 
-instance ConvertibleCalculator DoubleCalculator where
-    calcToInteger (DoubleCalculator (Engine stk _) _ _) = makeIntegerCalculator (map floor stk)
-    calcToWord8   (DoubleCalculator (Engine stk _) _ _) = makeWord8Calculator (map floor stk)
-    calcToWord16  (DoubleCalculator (Engine stk _) _ _) = makeWord16Calculator (map floor stk)
-    calcToWord32  (DoubleCalculator (Engine stk _) _ _) = makeWord32Calculator (map floor stk)
-    calcToWord64  (DoubleCalculator (Engine stk _) _ _) = makeWord64Calculator (map floor stk)
-    calcToDouble   = id
+instance Convertible Double where
+    toIntger x = floor x
+    toWord8 x = floor x
+    toWord16 x = floor x
+    toWord32 x = floor x
+    toWord64 x = floor x
+    toDouble = id
+
+class OpState a where
+    toOpStateInteger :: a -> OpStateInteger
+    toOpStateDouble :: a -> OpStateDouble
+
+instance OpState OpStateInteger where
+    toOpStateInteger = id
+    toOpStateDouble _ = opStateDoubleDefault
+
+instance OpState OpStateDouble where
+    toOpStateInteger _ = opStateIntegerDefault
+    toOpStateDouble = id
+
+convertCalculator ctor a b c = case calcEngine c of Engine stk ops -> ctor (map a stk) (b ops)
+
+calcToInteger :: (Convertible a, OpState b) => Calculator a b -> Calculator Integer OpStateInteger
+calcToInteger = convertCalculator newIntegerCalculator toIntger toOpStateInteger
+
+calcToWord8 :: (Convertible a, OpState b) => Calculator a b -> Calculator Word8 OpStateInteger
+calcToWord8 = convertCalculator newWord8Calculator toWord8 toOpStateInteger
+
+calcToWord16 :: (Convertible a, OpState b) => Calculator a b -> Calculator Word16 OpStateInteger
+calcToWord16 = convertCalculator newWord16Calculator toWord16 toOpStateInteger
+
+calcToWord32 :: (Convertible a, OpState b) => Calculator a b -> Calculator Word32 OpStateInteger
+calcToWord32 = convertCalculator newWord32Calculator toWord32 toOpStateInteger
+
+calcToWord64 :: (Convertible a, OpState b) => Calculator a b -> Calculator Word64 OpStateInteger
+calcToWord64 = convertCalculator newWord64Calculator toWord64 toOpStateInteger
+
+calcToDouble :: (Convertible a, OpState b) => Calculator a b -> Calculator Double OpStateDouble
+calcToDouble = convertCalculator newDoubleCalculator toDouble toOpStateDouble

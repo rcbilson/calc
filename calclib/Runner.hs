@@ -2,7 +2,7 @@ module Runner (startCalculator, defaultCalculator, testCalculator) where
 
 import DoubleCalculator
 import Calculator
---import ConvertibleCalculator
+import ConvertibleCalculator
 
 -- backspace takes a string and removes the last character
 backspace :: String -> String
@@ -12,7 +12,7 @@ backspace acc =
         [] -> []
         _:xs -> reverse xs
 
-consume :: CalcImpl a b -> String -> (CalcImpl a b, String)
+consume :: Calculator a b -> String -> (Calculator a b, String)
 -- Special case: if it's 0x or 0X it could be the beginning of
 -- a valid hex number so let it ride.
 consume calc "0x" = (calc, "0x")
@@ -41,7 +41,7 @@ consume calc str =
 
 -- consumeChar adds the character c to the accumulator and attempts
 -- to consume a token from the accumulator.
-consumeChar :: CalcImpl a b -> [Char] -> Char -> (CalcImpl a b, [Char])
+consumeChar :: Calculator a b -> [Char] -> Char -> (Calculator a b, [Char])
 consumeChar calc acc c =
     let
         newacc = reverse (c:(reverse acc))
@@ -50,7 +50,7 @@ consumeChar calc acc c =
 -- processChar processes the next input character.
 -- It returns the new state of the Calculator and any as-yet-unconsumed
 -- input.
-processChar :: CalcImpl a b -> [Char] -> Char -> (CalcImpl a b, [Char])
+processChar :: Calculator a b -> [Char] -> Char -> (Calculator a b, [Char])
 -- handle both DEL and BS as a backspace
 processChar calc acc '\DEL' = (calc, backspace acc)
 processChar calc acc '\BS' = (calc, backspace acc)
@@ -65,7 +65,7 @@ processChar calc acc c = consumeChar calc acc c
 -- showCalculator updates the calculator state display.
 -- It does this by erasing anything that was previously displayed and
 -- redisplaying the entire state.
-showCalculator :: CalcImpl a b -> [Char] -> IO()
+showCalculator :: Calculator a b -> [Char] -> IO()
 showCalculator calc acc = do
     -- ANSI escapes: clear from cursor to beginning of screen, move to position (1,1)
     putStr "\ESC[1J\ESC[H"
@@ -75,7 +75,7 @@ showCalculator calc acc = do
 -- testCalculator is a calculator main loop for test purposes. It doesn't have any
 -- IO, and it doesn't allow any of the special commands that switch modes so that the
 -- return value can be well-typed.
-testCalculator :: CalcImpl a b -> [Char] -> [Char] -> CalcImpl a b
+testCalculator :: Calculator a b -> [Char] -> [Char] -> Calculator a b
 testCalculator initialCalc _ [] = initialCalc
 testCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = processChar initialCalc acc x
@@ -86,25 +86,25 @@ testCalculator initialCalc acc (x:xs) =
 -- time and displaying the updated state of the calculator at each step.
 -- It also handles certain special operations that can't be expressed as EngineFn.
 -- These include exiting the program, and switching to a different arithmetic mode.
-doCalculator :: CalcImpl a b -> [Char] -> [Char] -> IO ()
+doCalculator :: (Convertible a, OpState b) => Calculator a b -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = processChar initialCalc acc x
     in case newAcc of 
         "\\x" -> return ()
---        "\\f" -> startCalculator (calcToDouble newCalc) xs
---        "\\i" -> startCalculator (calcToInteger newCalc) xs
---        "\\8" -> startCalculator (calcToWord8 newCalc) xs
---        "\\16" -> startCalculator (calcToWord16 newCalc) xs
---        "\\32" -> startCalculator (calcToWord32 newCalc) xs
---        "\\64" -> startCalculator (calcToWord64 newCalc) xs
+        "\\f" -> startCalculator (calcToDouble newCalc) xs
+        "\\i" -> startCalculator (calcToInteger newCalc) xs
+        "\\8" -> startCalculator (calcToWord8 newCalc) xs
+        "\\16" -> startCalculator (calcToWord16 newCalc) xs
+        "\\32" -> startCalculator (calcToWord32 newCalc) xs
+        "\\64" -> startCalculator (calcToWord64 newCalc) xs
         _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
 -- startCalculator displays the initial state of the calculator and then enters
 -- the main loop.
-startCalculator :: CalcImpl a b -> [Char] -> IO ()
+startCalculator :: (Convertible a, OpState b) => Calculator a b -> [Char] -> IO ()
 startCalculator calc input = do
     showCalculator calc ""
     doCalculator calc "" input
