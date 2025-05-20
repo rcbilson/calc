@@ -1,7 +1,15 @@
 module Runner (startCalculator, defaultCalculator, testCalculator) where
 
 import DoubleCalculator
-import Calculator
+import Calculator(
+    Calculator,
+    calcReads,
+    calcOp,
+    calcDisplay,
+    calcApply,
+    calcUndo,
+    calcRedo,
+    push)
 import ConvertibleCalculator
 
 -- backspace takes a string and removes the last character
