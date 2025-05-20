@@ -19,7 +19,7 @@ module Calculator (
     push,
     Engine( Engine ),
     EngineFn,
-    Undo( Undo ),
+    Undo( Undo, NoUndo ),
     numericOps) where
 
 -- The rest of this file are utility classes that are common to the different
@@ -49,7 +49,7 @@ type EngineFn a b = Engine a b -> (Engine a b, Undo a b)
 
 -- An Undo is a list of EngineFn that can be run in order to reverse the action
 -- of a previous EngineFn
-data Undo a b = Undo [EngineFn a b]
+data Undo a b = NoUndo | Undo [EngineFn a b]
 
 -- stackOp1 turns a unary function into an EngineFn that applies the function
 -- to the top element of the stack.
@@ -66,7 +66,7 @@ stackOp2 _ _ = error("stackOp2 underflow")
 -- opStateOp turns a unary function into an EngineFn that applies the function
 -- to the operational state.
 opStateOp :: (b -> b) -> EngineFn a b
-opStateOp f (Engine stk ops) = (Engine stk (f ops), Undo [])
+opStateOp f (Engine stk ops) = (Engine stk (f ops), NoUndo)
 
 -- push inserts the datum 'q' at the top of the stack.
 push :: a -> EngineFn a b
@@ -137,4 +137,7 @@ calcApply :: Calculator a b -> EngineFn a b -> Calculator a b
 calcApply calc f =
     let eng = calcEngine calc
         (newEng, undo) = f eng
-    in calc{ calcEngine=newEng, calcUndos=(undo:(calcUndos calc)), calcRedos=[] }
+        undos = case undo of
+            NoUndo -> calcUndos calc
+            _  -> undo:(calcUndos calc)
+    in calc{ calcEngine=newEng, calcUndos=undos, calcRedos=[] }

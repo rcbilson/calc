@@ -27,12 +27,12 @@ opStateDoubleDefault = OpStateDouble{ prec = Nothing, width = Nothing, dms = Fal
 
 -- setp sets the precision
 setp :: EngineFn Double OpStateDouble
-setp (Engine (x:xs) ops) = (Engine (ensureStack xs) ops{prec=Just $ floor x}, Undo [])
+setp (Engine (x:xs) ops) = (Engine (ensureStack xs) ops{prec=Just $ floor x}, NoUndo)
 setp _ = error("setp underflow")
 
 -- setw sets the width
 setw :: EngineFn Double OpStateDouble
-setw (Engine (x:xs) ops) = (Engine (ensureStack xs) ops{width=Just $ floor x}, Undo [])
+setw (Engine (x:xs) ops) = (Engine (ensureStack xs) ops{width=Just $ floor x}, NoUndo)
 setw _ = error("setw underflow")
 
 -- floatOps is a list of all of the operations available in the DoubleCalculator.

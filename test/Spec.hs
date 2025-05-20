@@ -64,6 +64,18 @@ numericTests doTest = do
     it "undoes a unary operation" $ do
       doTest "17negu" `shouldBe` 17
 
+    it "undoes a binary operation" $ do
+      doTest "17 3+u" `shouldBe` 3
+
+    it "undoes multiple operations" $ do
+      doTest "17 3+uu" `shouldBe` 17
+
+    it "undoes and redoes operations" $ do
+      doTest "17 3+uuU" `shouldBe` 3
+
+    it "clears the redo stack after an operation" $ do
+      doTest "1 17 3+u+U" `shouldBe` 20
+
 integerTests doTest = do
     (numericTests doTest)
 
@@ -105,6 +117,9 @@ integerTests doTest = do
 
     it "clears a bit" $ do
       doTest "12 2cb" `shouldBe` 0x8
+
+    it "doesn't add to the undo stack when changing display modes" $ do
+      doTest "17 3+hexu" `shouldBe` 3
 
 
 spec :: Spec

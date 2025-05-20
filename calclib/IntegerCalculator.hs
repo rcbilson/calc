@@ -36,8 +36,8 @@ opStateIntegerDefault = OpStateInteger { base = BaseDec, chunk = Chunk }
 -- toggleChunk toggles the state of output chunking.
 toggleChunk :: EngineFn a OpStateInteger
 toggleChunk (Engine stk ops) = case chunk ops of
-    NoChunk -> (Engine stk ops{chunk=Chunk}, Undo [])
-    Chunk   -> (Engine stk ops{chunk=NoChunk}, Undo [])
+    NoChunk -> (Engine stk ops{chunk=Chunk}, NoUndo)
+    Chunk   -> (Engine stk ops{chunk=NoChunk}, NoUndo)
 
 intOps :: (Integral a, Bits a) => Map.Map String (EngineFn a OpStateInteger)
 intOps = Map.fromList $ numericOps ++
