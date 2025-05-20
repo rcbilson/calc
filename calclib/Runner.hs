@@ -2,7 +2,7 @@ module Runner (startCalculator, defaultCalculator, testCalculator) where
 
 import DoubleCalculator
 import Calculator
-import ConvertibleCalculator
+--import ConvertibleCalculator
 
 -- backspace takes a string and removes the last character
 backspace :: String -> String
@@ -61,33 +61,25 @@ testCalculator initialCalc acc (x:xs) =
 -- time and displaying the updated state of the calculator at each step.
 -- It also handles certain special operations that can't be expressed as EngineFn.
 -- These include exiting the program, and switching to a different arithmetic mode.
-doCalculator :: ConvertibleCalculator a => a -> [Char] -> [Char] -> IO ()
+doCalculator :: Calculator a => a -> [Char] -> [Char] -> IO ()
 doCalculator _ _ [] = return ()
 doCalculator initialCalc acc (x:xs) =
     let (newCalc, newAcc) = processChar initialCalc acc x
     in case newAcc of 
         "\\x" -> return ()
-        "\\f" -> startCalculator (calcToDouble newCalc) xs
-        "\\i" -> startCalculator (calcToInteger newCalc) xs
-        "\\8" -> startCalculator (calcToWord8 newCalc) xs
-        "\\16" -> startCalculator (calcToWord16 newCalc) xs
-        "\\32" -> startCalculator (calcToWord32 newCalc) xs
-        "\\64" -> startCalculator (calcToWord64 newCalc) xs
-        "u" -> do
-            let undone = (calcUndo newCalc)
-            showCalculator undone ""
-            doCalculator undone "" xs
-        "U" -> do
-            let redone = (calcRedo newCalc)
-            showCalculator redone ""
-            doCalculator redone "" xs
+--        "\\f" -> startCalculator (calcToDouble newCalc) xs
+--        "\\i" -> startCalculator (calcToInteger newCalc) xs
+--        "\\8" -> startCalculator (calcToWord8 newCalc) xs
+--        "\\16" -> startCalculator (calcToWord16 newCalc) xs
+--        "\\32" -> startCalculator (calcToWord32 newCalc) xs
+--        "\\64" -> startCalculator (calcToWord64 newCalc) xs
         _ -> do
             showCalculator newCalc newAcc
             doCalculator newCalc newAcc xs
 
 -- startCalculator displays the initial state of the calculator and then enters
 -- the main loop.
-startCalculator :: ConvertibleCalculator a => a -> [Char] -> IO ()
+startCalculator :: Calculator a => a -> [Char] -> IO ()
 startCalculator calc input = do
     showCalculator calc ""
     doCalculator calc "" input

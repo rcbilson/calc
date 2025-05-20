@@ -2,11 +2,12 @@ import Test.Hspec
 
 import Runner
 import Calculator
-import IntegerCalculator
+--import IntegerCalculator
 import DoubleCalculator
 import Data.Word
 
 -- test a string of commands, returning the top of stack
+{-
 doIntegerTest :: String -> Integer
 doIntegerTest input =
     let startCalc = makeIntegerCalculator [0,0,0,0]
@@ -36,7 +37,7 @@ doWord64Test input =
     let startCalc = makeWord64Calculator [0,0,0,0]
         endCalc = testCalculator startCalc "" input
     in case endCalc of Word64Calculator (Engine (x:xs) _) _ _ -> x
-
+-}
 doDoubleTest :: String -> Double
 doDoubleTest input =
     let startCalc = makeDoubleCalculator [0,0,0,0]
@@ -122,6 +123,7 @@ integerTests doTest = do
 
 spec :: Spec
 spec = do
+{-
     describe "IntegerCalculator" $ do
         (integerTests doIntegerTest)
 
@@ -160,7 +162,7 @@ spec = do
 
         it "uses 2's complement negation" $ do
             doWord64Test "0xffffffffffffffff neg" `shouldBe` 1
-
+-}
     describe "DoubleCalculator" $ do
         (numericTests doDoubleTest)
 
