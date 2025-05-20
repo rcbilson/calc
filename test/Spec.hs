@@ -42,7 +42,7 @@ doDoubleTest :: String -> Double
 doDoubleTest input =
     let startCalc = makeDoubleCalculator [0,0,0,0]
         endCalc = testCalculator startCalc "" input
-    in case endCalc of DoubleCalculator (Engine (x:xs) _) _ _ -> x
+    in case calcEngine endCalc of Engine (x:xs) _ -> x
 
 main :: IO ()
 main = hspec spec

@@ -1,4 +1,4 @@
-module DoubleCalculator ( DoubleCalculator(DoubleCalculator), makeDoubleCalculator, defaultCalculator ) where
+module DoubleCalculator ( makeDoubleCalculator, defaultCalculator ) where
 
 import Calculator
 import qualified Data.Map.Strict as Map
@@ -132,33 +132,16 @@ readDouble inp =
     where
         assemble d m s rest = [(d + (m/60) + (s/3600), rest)]
 
--- DoubleCalculator holds the state of a floating-point calculator.
-data DoubleCalculator = DoubleCalculator
-    { engine :: Engine Double OpStateDouble
-    , undos :: [Undo Double OpStateDouble]
-    , redos :: [Undo Double OpStateDouble]
+makeDoubleCalculator :: Integral a => Stack a -> CalcImpl Double OpStateDouble
+makeDoubleCalculator stk = CalcImpl
+    { calcEngine = Engine (map fromIntegral stk) opStateDoubleDefault
+    , calcUndos = []
+    , calcRedos = []
+    , calcOp = flip Map.lookup floatOps
+    , calcReads = readDouble
+    , calcDisp = displayDouble . calcEngine
     }
 
--- floatConsume attempts to find a prefix of the given string that represents a
--- datum or one of the defined floating-point operations, updates the engine if
--- one is found, and then returns the updated engine and the remainder of the
--- string.
-floatConsume :: Engine Double OpStateDouble -> String -> (Engine Double OpStateDouble, String, [Undo Double OpStateDouble])
-floatConsume = genericConsume (flip Map.lookup floatOps) readDouble
-
-instance Calculator DoubleCalculator where
-    calcDisplay (DoubleCalculator engine u r) = do
-        printf "u:%d r:%d\n" (length u) (length r)
-        displayDouble engine
-    calcConsume (DoubleCalculator engine undos _) str =
-        let (eng, rest, u) = floatConsume engine str
-        in (DoubleCalculator eng (u ++ undos) [], rest)
-    calcUndo    (DoubleCalculator engine undos redos) = let (e, u, r) = genericUndo engine undos redos in DoubleCalculator e u r
-    calcRedo    (DoubleCalculator engine undos redos) = let (e, r, u) = genericUndo engine redos undos in DoubleCalculator e u r
-
-makeDoubleCalculator :: Integral a => Stack a -> DoubleCalculator
-makeDoubleCalculator stk = DoubleCalculator (Engine (map fromIntegral stk) opStateDoubleDefault) [] []
-
 -- defaultCalculator is the kind of calculator used when the program starts.
-defaultCalculator :: DoubleCalculator
+defaultCalculator :: CalcImpl Double OpStateDouble
 defaultCalculator = makeDoubleCalculator [0,0,0,0]
