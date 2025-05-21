@@ -31,9 +31,7 @@ type Stack a = [a]
 -- four elements deep, filling in with zeroes at the base of the stack as
 -- necessary.
 ensureStack :: Num a => Stack a -> Stack a
-ensureStack stk
-    | length(stk) < 4 = ensureStack (stk ++ [0])
-    | otherwise       = stk
+ensureStack stk = take 4 (stk ++ repeat 0)
 
 -- An Engine is the guts of a Calculator, consisting of a stack and some amount
 -- of "operational state" that determines the behaviour of the calculator.
