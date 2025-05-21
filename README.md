@@ -5,7 +5,7 @@ Richard's quirky RPN calculator.
 ## What is it?
 
 A calculator that can be run from a shell. It's intended to be what _I_ want
-from a desk calculator, which is probably different from what _you_ want as a
+from a desk calculator, which is probably different from what _you_ want from a
 desk calculator.
 
 It has six different arithmetic modes, which you can switch among by typing a
@@ -20,9 +20,15 @@ code:
 
 Generic operations: `+ - * neg dup swap drop`
 
-Integer operations: `bin dec hex chunk ^ / % & | ~ ! shift < > sb cb`
+Integer operations: `^ / % & | ~ ! shift < > sb cb`
 
-Floating-point operations: `/ ^ setp clearp setw clearw`
+Integer display modes: `bin dec hex chunk`
+
+Floating-point operations: `/ ^ log ln lg exp pi sin cos tan asin acos atan`
+
+Floating-point display modes: `setp clearp setw clearw dms`
+
+It has infinite undo -- use `u` to undo and `U` to redo.
 
 ## Building and running
 

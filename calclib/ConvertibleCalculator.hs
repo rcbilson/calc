@@ -13,6 +13,9 @@ import IntegerCalculator
 import DoubleCalculator
 import Data.Word
 
+-- A Convertible is a type that can be converted into all of the other possible
+-- calculator types. The conversion may be lossy but should make a best effort
+-- to preserve the value.
 class Convertible a where
     toIntger :: a -> Integer
     toWord8 :: a -> Word8
@@ -69,6 +72,8 @@ instance Convertible Double where
     toWord64 x = floor x
     toDouble = id
 
+-- An OpState is an operational state type that has a defined behaviour when
+-- moving to a different arithmetic mode.
 class OpState a where
     toOpStateInteger :: a -> OpStateInteger
     toOpStateDouble :: a -> OpStateDouble
@@ -81,6 +86,8 @@ instance OpState OpStateDouble where
     toOpStateInteger _ = opStateIntegerDefault
     toOpStateDouble = id
 
+-- convertCalculator converts an instance of one kind of calculator into another.
+convertCalculator :: (Stack a -> b -> Calculator a b) -> (c -> a) -> (d -> b) -> Calculator c d -> Calculator a b
 convertCalculator ctor a b c = case calcEngine c of Engine stk ops -> ctor (map a stk) (b ops)
 
 calcToInteger :: (Convertible a, OpState b) => Calculator a b -> Calculator Integer OpStateInteger

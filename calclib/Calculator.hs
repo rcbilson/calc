@@ -31,7 +31,9 @@ type Stack a = [a]
 -- four elements deep, filling in with zeroes at the base of the stack as
 -- necessary.
 ensureStack :: Num a => Stack a -> Stack a
-ensureStack stk = take 4 (stk ++ repeat 0)
+ensureStack stk
+    | (length stk) < 4 = take 4 (stk ++ repeat 0)
+    | otherwise        = stk
 
 -- An Engine is the guts of a Calculator, consisting of a stack and some amount
 -- of "operational state" that determines the behaviour of the calculator.
@@ -101,35 +103,42 @@ numericOps =
         , ("?", drop1)
         ]
 
-genericUndo :: Engine a b -> [Undo a b] -> [Undo a b] -> (Engine a b, [Undo a b], [Undo a b])
-genericUndo engine ((Undo undos):rest) redos = 
+-- applyUndo applies an undo to an engine, returning an updated engine, the
+-- remaining undos, and the set of redos.
+applyUndo :: Engine a b -> [Undo a b] -> [Undo a b] -> (Engine a b, [Undo a b], [Undo a b])
+applyUndo engine ((Undo undos):rest) redos = 
     let doUndos (e, us) f = let (e1, Undo u) = f e in (e1, u ++ us)
         (newEngine, redo) = foldl doUndos (engine, []) undos
     in (newEngine, rest, (Undo redo):redos)
-genericUndo engine [] redos = (engine, [], redos)
+applyUndo engine [] redos = (engine, [], redos)
 
+-- calcUndo undoes the most recent operation
 calcUndo :: Calculator a b -> Calculator a b
 calcUndo c =
-    let (e, u, r) = genericUndo (calcEngine c) (calcUndos c) (calcRedos c)
+    let (e, u, r) = applyUndo (calcEngine c) (calcUndos c) (calcRedos c)
     in c{ calcEngine = e, calcUndos=u, calcRedos=r }
 
+-- calcRedo redoes the most recently undone operation
 calcRedo :: Calculator a b -> Calculator a b
 calcRedo c =
-    let (e, r, u) = genericUndo (calcEngine c) (calcRedos c) (calcUndos c)
+    let (e, r, u) = applyUndo (calcEngine c) (calcRedos c) (calcUndos c)
     in c{ calcEngine = e, calcUndos=u, calcRedos=r }
 
+-- Calculator describes the behavior of a particular calculator
 data Calculator a b = Calculator
-    { calcEngine :: Engine a b
-    , calcUndos :: [Undo a b]
-    , calcRedos :: [Undo a b]
-    , calcOp :: String -> Maybe (EngineFn a b)
-    , calcReads :: String -> [(a, String)]
-    , calcDisp :: Calculator a b -> IO()
+    { calcEngine :: Engine a b -- stack and operational state
+    , calcUndos :: [Undo a b] -- stack of possible undos
+    , calcRedos :: [Undo a b] -- stack of possible redos
+    , calcOp :: String -> Maybe (EngineFn a b) -- maps a string to an operation if possible
+    , calcReads :: String -> [(a, String)] -- parses a number from a string if possible
+    , calcDisp :: Calculator a b -> IO() -- displays the current state of the calculator
     }
 
+-- calcDisplay displays the calculator
 calcDisplay :: Calculator a b -> IO()
 calcDisplay c = (calcDisp c) c
 
+-- calcApply applies the given function to the calculator state
 calcApply :: Calculator a b -> EngineFn a b -> Calculator a b
 calcApply calc f =
     let eng = calcEngine calc

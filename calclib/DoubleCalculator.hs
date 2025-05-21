@@ -137,6 +137,8 @@ readDouble inp =
     where
         assemble d m s rest = [(d + (m/60) + (s/3600), rest)]
 
+-- newDoubleCalculator creates an instance of a Calculator that operates
+-- on Doubles.
 newDoubleCalculator :: Stack Double -> OpStateDouble -> Calculator Double OpStateDouble
 newDoubleCalculator stk ops = Calculator
     { calcEngine = Engine stk ops
@@ -147,6 +149,7 @@ newDoubleCalculator stk ops = Calculator
     , calcDisp = displayDouble . calcEngine
     }
 
+-- testDoubleCalculator creates a default instance of an Double Calculator.
 testDoubleCalculator :: Calculator Double OpStateDouble
 testDoubleCalculator = newDoubleCalculator [0,0,0,0] opStateDoubleDefault
 

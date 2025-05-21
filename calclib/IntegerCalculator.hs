@@ -39,6 +39,7 @@ toggleChunk (Engine stk ops) = case chunk ops of
     NoChunk -> (Engine stk ops{chunk=Chunk}, NoUndo)
     Chunk   -> (Engine stk ops{chunk=NoChunk}, NoUndo)
 
+-- intOps are the operations available for an integer calculator
 intOps :: (Integral a, Bits a) => Map.Map String (EngineFn a OpStateInteger)
 intOps = Map.fromList $ numericOps ++
         [ ("bin", opStateOp (\s -> s{base = BaseBin}))
@@ -107,6 +108,7 @@ formatNoWsize b c v
     | v < 0     = '-':(formatNoWsize b c (-v))
     | otherwise = reverse $ c $ map intDigit $ remainders b v
 
+-- displayOps formats the operational state as a string
 displayOps :: OpStateInteger -> String
 displayOps ops =
     let
@@ -146,6 +148,8 @@ displayInteger title eng@(Engine _ ops) =
         format = formatNoWsize b chunkFn
     in displayIntegral title format eng
 
+-- newIntegerCalculator creates an instance of a Calculator that operates
+-- on Integers.
 newIntegerCalculator :: Stack Integer -> OpStateInteger -> Calculator Integer OpStateInteger
 newIntegerCalculator stk ops = Calculator
     { calcEngine = Engine stk ops
@@ -156,6 +160,7 @@ newIntegerCalculator stk ops = Calculator
     , calcDisp = displayInteger "Integer" . calcEngine
     }
 
+-- testIntegerCalculator creates a default instance of an Integer Calculator.
 testIntegerCalculator :: Calculator Integer OpStateInteger
 testIntegerCalculator = newIntegerCalculator [0,0,0,0] opStateIntegerDefault
 
@@ -170,8 +175,8 @@ formatWsize w b c v
     f = map intDigit $ remainders b v
     n = length f
 
--- displayFixed displays the state of an integral calculator with
--- a constraint on the word size.
+-- displayFixed displays the state of an integral calculator with a constraint
+-- on the word size.
 displayFixed :: (Integral a, FiniteBits a) => [Char] -> Engine a OpStateInteger -> IO ()
 displayFixed title eng@(Engine (x:_) ops) =
     let (b, c, w) = case (base ops) of
@@ -185,6 +190,9 @@ displayFixed title eng@(Engine (x:_) ops) =
     in displayIntegral title format eng
 displayFixed _ _ = error("displayFixed underflow")
 
+-- newFixedCalculator creates an instance of a Calculator that operates on a
+-- fixed-width integral type. The given label is used as part of the display to
+-- identify which integral type is in use.
 newFixedCalculator :: (Integral a, FiniteBits a, Read a) => String -> Stack a -> OpStateInteger -> Calculator a OpStateInteger
 newFixedCalculator lbl stk ops = Calculator
     { calcEngine = Engine stk ops

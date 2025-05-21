@@ -20,6 +20,11 @@ backspace acc =
         [] -> []
         _:xs -> reverse xs
 
+-- consume attempts to interpret the given string as containing one or more
+-- numbers or operations to be applied to the calculator. If it finds them it
+-- applies them, returning the updated calculator and whatever suffix of the
+-- string did not contain a valid instruction. If not, it returns the given
+-- calculator and the given string.
 consume :: Calculator a b -> String -> (Calculator a b, String)
 -- Special case: if it's 0x or 0X it could be the beginning of
 -- a valid hex number so let it ride.
