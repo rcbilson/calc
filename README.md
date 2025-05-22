@@ -11,8 +11,8 @@ desk calculator.
 It has six different arithmetic modes, which you can switch among by typing a
 code:
 
-    \i  -> unbounded integer (startup mode)
-    \f  -> floating point
+    \f  -> floating point (startup mode)
+    \i  -> unbounded integer
     \8  -> 8-bit fixed-width integer
     \16 -> 16-bit fixed-width integer
     \32 -> 32-bit fixed-width integer
