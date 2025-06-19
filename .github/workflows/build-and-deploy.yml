@@ -28,10 +28,10 @@ jobs:
       run: cabal update
 
     - name: Test project
-      run: cabal test -j$(nproc)
+      run: cabal test #-j$(nproc)
 
     - name: Build project
-      run: cabal build -j$(nproc)
+      run: cabal build #-j$(nproc)
 
     - name: Install project
       run: |
