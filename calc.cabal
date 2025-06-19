@@ -62,16 +62,22 @@ executable calc
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:    WithRawInput,
+    other-modules:    WithRawInput
+    if os(windows)
+        other-modules: WithRawInputWin32
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
+    default-extensions: CPP
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.1,
                       containers ^>=0.6.7,
-                      unix ^>=2.7.3,
                       calclib
+    if !os(windows)
+        build-depends: unix ^>=2.7.3
+    if os(windows)
+        build-depends: Win32 ^>=2.13
 
     -- Directories containing source files.
     hs-source-dirs:   app
@@ -98,6 +104,9 @@ library calclib
     build-depends:       base ^>=4.17.2.1,
                          containers ^>=0.6.7,
                          array ^>=0.5.4.0,
-                         regex-tdfa ^>=1.3.2,
-                         unix ^>=2.7.3
+                         regex-tdfa ^>=1.3.2
+    if !os(windows)
+        build-depends: unix ^>=2.7.3
+    if os(windows)
+        build-depends: Win32 ^>=2.13
     default-language:    Haskell2010

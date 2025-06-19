@@ -1,12 +1,19 @@
 module WithRawInput ( withRawInput ) where
 
+#ifdef mingw32_HOST_OS
+{- Windows implementation -}
+import WithRawInputWin32 (withRawInput)
+#else
+{- POSIX implementation -}
 {- from unix library -}
 import System.Posix.Terminal
 import System.Posix.IO (stdInput)
 
 {- from base -}
 import Control.Exception (finally)
+#endif
 
+#ifndef mingw32_HOST_OS
 {- https://stackoverflow.com/questions/23068218/haskell-read-raw-keyboard-input
  - run an application in raw input / non-canonical mode with given
  - VMIN and VTIME settings. for a description of these, see:
@@ -35,5 +42,6 @@ withRawInput vmin vtime application = do
    -}
   application
     `finally` setTerminalAttributes stdInput oldTermSettings Immediately
+#endif
 
 
