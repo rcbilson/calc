@@ -12,7 +12,7 @@ jobs:
       matrix:
         os: ['ubuntu-24.04', 'ubuntu-24.04-arm', 'windows-latest']
         ghc: ['9.4.8'] # You can adjust GHC versions as needed
-    name: Build for Linux (${{ matrix.os }})
+    name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -36,13 +36,18 @@ jobs:
     - name: Install project
       run: |
         cabal install --installdir=./bin
-        strip bin/calc
+        
+    - name: Strip executable (Linux only)
+      if: runner.os != 'Windows'
+      run: strip bin/calc
 
     - name: Upload executable to S3
       uses: actions/upload-artifact@v4 # Using artifact for cross-job transfer
       with:
-        name: linux-executable-${{ matrix.os }}
-        path: bin/calc
+        name: executable-${{ matrix.os }}
+        path: |
+          bin/calc
+          bin/calc.exe
 
   deploy:
     name: Deploy to S3
@@ -55,14 +60,20 @@ jobs:
     - name: Download executable (x86_64)
       uses: actions/download-artifact@v4
       with:
-        name: linux-executable-ubuntu-24.04
+        name: executable-ubuntu-24.04
         path: x86_64-build/
 
     - name: Download executable (arm64)
       uses: actions/download-artifact@v4
       with:
-        name: linux-executable-ubuntu-24.04-arm
+        name: executable-ubuntu-24.04-arm
         path: aarch64-build/
+
+    - name: Download executable (Windows)
+      uses: actions/download-artifact@v4
+      with:
+        name: executable-windows-latest
+        path: windows-build/
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -75,3 +86,4 @@ jobs:
       run: |
         aws s3 cp x86_64-build/* s3://rcbilson-dist/Linux/x86_64/
         aws s3 cp aarch64-build/* s3://rcbilson-dist/Linux/aarch64/
+        aws s3 cp windows-build/* s3://rcbilson-dist/Windows/x86_64/
